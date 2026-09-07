@@ -338,11 +338,11 @@ int main(void)
                 {
                     PRINTF("%3u", sliderPos);
                 }
-                PRINTF(" | Presses=%lu\r\n", g_buttonPressCount);
+                PRINTF(" | Presses=%u\r\n", g_buttonPressCount);
             }
             else
             {
-                PRINTF("Presses=%lu\r\n", g_buttonPressCount);
+                PRINTF("Presses=%u\r\n", g_buttonPressCount);
             }
         }
     }

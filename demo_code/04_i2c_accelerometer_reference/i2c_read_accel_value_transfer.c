@@ -1,436 +1,216 @@
 /*
- * Copyright (c) 2015, Freescale Semiconductor, Inc.
- * Copyright 2016-2017 NXP
+ * P1 Session 4 reference: read the onboard FXOS8700CQ/MMA8451 accelerometer
+ * over I2C0, continuously.
  *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
+ * Self-contained on purpose: the original NXP SDK example this was adapted
+ * from relies on BOARD_ACCEL_I2C_BASEADDR / BOARD_I2C_ConfigurePins() /
+ * BOARD_I2C_ReleaseBus(), which only exist in that example's own custom
+ * board.c. A plain wizard-created project's board.c does not define them,
+ * so pasting the original file into a fresh project fails to compile. This
+ * version hardcodes I2C0 on PTE24 (SCL) / PTE25 (SDA) and does its own pin
+ * muxing instead, so it drops straight into any wizard project's main.c.
+ * See the manual, Section 10.
  *
- * o Redistributions of source code must retain the above copyright notice, this list
- *   of conditions and the following disclaimer.
- *
- * o Redistributions in binary form must reproduce the above copyright notice, this
- *   list of conditions and the following disclaimer in the documentation and/or
- *   other materials provided with the distribution.
- *
- * o Neither the name of the copyright holder nor the names of its
- *   contributors may be used to endorse or promote products derived from this
- *   software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Reference only. Get the WHO_AM_I probe and one raw read working yourself
+ * first; open this only if stuck.
  */
-
-/*  SDK Included Files */
 #include "board.h"
+#include "pin_mux.h"
+#include "clock_config.h"
 #include "fsl_debug_console.h"
 #include "fsl_i2c.h"
-
-#include "clock_config.h"
-#include "pin_mux.h"
-#include "fsl_gpio.h"
 #include "fsl_port.h"
-/*******************************************************************************
- * Definitions
- ******************************************************************************/
-#define ACCEL_I2C_CLK_SRC I2C0_CLK_SRC
-#define ACCEL_I2C_CLK_FREQ CLOCK_GetFreq(I2C0_CLK_SRC)
+#include "fsl_gpio.h"
 
-#define I2C_RELEASE_SDA_PORT PORTE
-#define I2C_RELEASE_SCL_PORT PORTE
-#define I2C_RELEASE_SDA_GPIO GPIOE
-#define I2C_RELEASE_SDA_PIN 25U
-#define I2C_RELEASE_SCL_GPIO GPIOE
-#define I2C_RELEASE_SCL_PIN 24U
-#define I2C_RELEASE_BUS_COUNT 100U
-#define I2C_BAUDRATE 100000U
+#define ACCEL_I2C_BASEADDR I2C0
+#define ACCEL_I2C_BAUDRATE 100000U
+
+#define ACCEL_REG_STATUS     0x00U
+#define ACCEL_REG_OUT_X_MSB  0x01U
+#define ACCEL_REG_WHO_AM_I   0x0DU
+#define ACCEL_REG_XYZ_DATA_CFG 0x0EU
+#define ACCEL_REG_CTRL_REG1  0x2AU
+
 #define FXOS8700_WHOAMI 0xC7U
-#define MMA8451_WHOAMI 0x1AU
-#define ACCEL_STATUS 0x00U
-#define ACCEL_XYZ_DATA_CFG 0x0EU
-#define ACCEL_CTRL_REG1 0x2AU
-/* FXOS8700 and MMA8451 have the same who_am_i register address. */
-#define ACCEL_WHOAMI_REG 0x0DU
-#define ACCEL_READ_TIMES 10U
+#define MMA8451_WHOAMI  0x1AU
 
-/*******************************************************************************
- * Prototypes
- ******************************************************************************/
-void BOARD_I2C_ReleaseBus(void);
+#define I2C_RELEASE_SCL_PIN 24U
+#define I2C_RELEASE_SDA_PIN 25U
+#define I2C_RELEASE_BUS_COUNT 100U
 
-static bool I2C_ReadAccelWhoAmI(void);
-static bool I2C_WriteAccelReg(I2C_Type *base, uint8_t device_addr, uint8_t reg_addr, uint8_t value);
-static bool I2C_ReadAccelRegs(I2C_Type *base, uint8_t device_addr, uint8_t reg_addr, uint8_t *rxBuff, uint32_t rxSize);
+/* SA0/SA1 strap options seen across FRDM boards / breakout modules. */
+static const uint8_t kPossibleAccelAddresses[] = {0x1CU, 0x1DU, 0x1EU, 0x1FU};
+static uint8_t g_accelAddress = 0x1DU;
 
-/*******************************************************************************
- * Variables
- ******************************************************************************/
-
-/*  FXOS8700 and MMA8451 device address */
-const uint8_t g_accel_address[] = {0x1CU, 0x1DU, 0x1EU, 0x1FU};
-
-i2c_master_handle_t g_m_handle;
-
-uint8_t g_accel_addr_found = 0x00;
-
-volatile bool completionFlag = false;
-volatile bool nakFlag = false;
-
-/*******************************************************************************
- * Code
- ******************************************************************************/
-static void i2c_release_bus_delay(void)
+/*
+ * If a previous run (or a reset mid-transaction) left the accelerometer
+ * holding SDA low, a normal I2C start condition can never be sent. Bit-bang
+ * 9 SCL pulses with SDA released to force any stuck slave to give up the
+ * bus, then send a manual stop, before I2C0 takes over the pins for real.
+ * See the manual, Section 10, for why this only shows up intermittently.
+ */
+static void I2cReleaseBus(void)
 {
-    uint32_t i = 0;
-    for (i = 0; i < I2C_RELEASE_BUS_COUNT; i++)
-    {
-        __NOP();
-    }
-}
+    gpio_pin_config_t pinConfig;
+    port_pin_config_t portConfig = {0};
+    uint32_t i;
 
-void BOARD_I2C_ReleaseBus(void)
-{
-    uint8_t i = 0;
-    gpio_pin_config_t pin_config;
-    port_pin_config_t i2c_pin_config = {0};
-
-    /* Config pin mux as gpio */
-    i2c_pin_config.pullSelect = kPORT_PullUp;
-    i2c_pin_config.mux = kPORT_MuxAsGpio;
-
-    pin_config.pinDirection = kGPIO_DigitalOutput;
-    pin_config.outputLogic = 1U;
     CLOCK_EnableClock(kCLOCK_PortE);
-    PORT_SetPinConfig(I2C_RELEASE_SCL_PORT, I2C_RELEASE_SCL_PIN, &i2c_pin_config);
-    PORT_SetPinConfig(I2C_RELEASE_SCL_PORT, I2C_RELEASE_SDA_PIN, &i2c_pin_config);
+    portConfig.pullSelect = kPORT_PullUp;
+    portConfig.mux = kPORT_MuxAsGpio;
+    PORT_SetPinConfig(PORTE, I2C_RELEASE_SCL_PIN, &portConfig);
+    PORT_SetPinConfig(PORTE, I2C_RELEASE_SDA_PIN, &portConfig);
 
-    GPIO_PinInit(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, &pin_config);
-    GPIO_PinInit(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, &pin_config);
+    pinConfig.pinDirection = kGPIO_DigitalOutput;
+    pinConfig.outputLogic = 1U;
+    GPIO_PinInit(GPIOE, I2C_RELEASE_SCL_PIN, &pinConfig);
+    GPIO_PinInit(GPIOE, I2C_RELEASE_SDA_PIN, &pinConfig);
 
-    /* Drive SDA low first to simulate a start */
-    GPIO_WritePinOutput(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, 0U);
-    i2c_release_bus_delay();
+    GPIO_WritePinOutput(GPIOE, I2C_RELEASE_SDA_PIN, 0U);
+    for (i = 0U; i < I2C_RELEASE_BUS_COUNT; i++) { __NOP(); }
 
-    /* Send 9 pulses on SCL and keep SDA low */
-    for (i = 0; i < 9; i++)
+    for (i = 0U; i < 9U; i++)
     {
-        GPIO_WritePinOutput(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, 0U);
-        i2c_release_bus_delay();
-
-        GPIO_WritePinOutput(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, 1U);
-        i2c_release_bus_delay();
-
-        GPIO_WritePinOutput(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, 1U);
-        i2c_release_bus_delay();
-        i2c_release_bus_delay();
+        GPIO_WritePinOutput(GPIOE, I2C_RELEASE_SCL_PIN, 0U);
+        GPIO_WritePinOutput(GPIOE, I2C_RELEASE_SDA_PIN, 1U);
+        GPIO_WritePinOutput(GPIOE, I2C_RELEASE_SCL_PIN, 1U);
     }
 
-    /* Send stop */
-    GPIO_WritePinOutput(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, 0U);
-    i2c_release_bus_delay();
-
-    GPIO_WritePinOutput(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, 0U);
-    i2c_release_bus_delay();
-
-    GPIO_WritePinOutput(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, 1U);
-    i2c_release_bus_delay();
-
-    GPIO_WritePinOutput(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, 1U);
-    i2c_release_bus_delay();
+    GPIO_WritePinOutput(GPIOE, I2C_RELEASE_SCL_PIN, 0U);
+    GPIO_WritePinOutput(GPIOE, I2C_RELEASE_SDA_PIN, 0U);
+    GPIO_WritePinOutput(GPIOE, I2C_RELEASE_SCL_PIN, 1U);
+    GPIO_WritePinOutput(GPIOE, I2C_RELEASE_SDA_PIN, 1U);
 }
 
-static void i2c_master_callback(I2C_Type *base, i2c_master_handle_t *handle, status_t status, void *userData)
+static void InitAccelI2cPins(void)
 {
-    /* Signal transfer success when received success status. */
-    if (status == kStatus_Success)
-    {
-        completionFlag = true;
-    }
-    /* Signal transfer success when received success status. */
-    if ((status == kStatus_I2C_Nak) || (status == kStatus_I2C_Addr_Nak))
-    {
-        nakFlag = true;
-    }
+    PORT_SetPinMux(PORTE, I2C_RELEASE_SCL_PIN, kPORT_MuxAlt5); /* I2C0_SCL */
+    PORT_SetPinMux(PORTE, I2C_RELEASE_SDA_PIN, kPORT_MuxAlt5); /* I2C0_SDA */
 }
 
-static bool I2C_ReadAccelWhoAmI(void)
+static status_t AccelWriteReg(uint8_t reg, uint8_t value)
 {
-    /*
-    How to read the device who_am_I value ?
-    Start + Device_address_Write , who_am_I_register;
-    Repeart_Start + Device_address_Read , who_am_I_value.
-    */
-    uint8_t who_am_i_reg = ACCEL_WHOAMI_REG;
-    uint8_t who_am_i_value = 0x00;
-    uint8_t accel_addr_array_size = 0x00;
-    bool find_device = false;
-    uint8_t i = 0;
-    uint32_t sourceClock = 0;
+    i2c_master_transfer_t xfer = {0};
+    uint8_t payload[1] = {value};
 
-    i2c_master_config_t masterConfig;
+    xfer.slaveAddress = g_accelAddress;
+    xfer.direction = kI2C_Write;
+    xfer.subaddress = reg;
+    xfer.subaddressSize = 1U;
+    xfer.data = payload;
+    xfer.dataSize = 1U;
+    xfer.flags = kI2C_TransferDefaultFlag;
 
-    /*
-     * masterConfig.baudRate_Bps = 100000U;
-     * masterConfig.enableStopHold = false;
-     * masterConfig.glitchFilterWidth = 0U;
-     * masterConfig.enableMaster = true;
-     */
-    I2C_MasterGetDefaultConfig(&masterConfig);
+    return I2C_MasterTransferBlocking(ACCEL_I2C_BASEADDR, &xfer);
+}
 
-    masterConfig.baudRate_Bps = I2C_BAUDRATE;
+static status_t AccelReadRegs(uint8_t reg, uint8_t *buffer, size_t count)
+{
+    i2c_master_transfer_t xfer = {0};
 
-    sourceClock = ACCEL_I2C_CLK_FREQ;
+    xfer.slaveAddress = g_accelAddress;
+    xfer.direction = kI2C_Read;
+    xfer.subaddress = reg;
+    xfer.subaddressSize = 1U;
+    xfer.data = buffer;
+    xfer.dataSize = count;
+    xfer.flags = kI2C_TransferDefaultFlag;
 
-    I2C_MasterInit(BOARD_ACCEL_I2C_BASEADDR, &masterConfig, sourceClock);
+    return I2C_MasterTransferBlocking(ACCEL_I2C_BASEADDR, &xfer);
+}
 
-    i2c_master_transfer_t masterXfer;
-    memset(&masterXfer, 0, sizeof(masterXfer));
+static bool ProbeAccelAddress(void)
+{
+    size_t i;
+    uint8_t whoAmI;
 
-    masterXfer.slaveAddress = g_accel_address[0];
-    masterXfer.direction = kI2C_Write;
-    masterXfer.subaddress = 0;
-    masterXfer.subaddressSize = 0;
-    masterXfer.data = &who_am_i_reg;
-    masterXfer.dataSize = 1;
-    masterXfer.flags = kI2C_TransferNoStopFlag;
-
-    accel_addr_array_size = sizeof(g_accel_address) / sizeof(g_accel_address[0]);
-
-    for (i = 0; i < accel_addr_array_size; i++)
+    for (i = 0U; i < (sizeof(kPossibleAccelAddresses) / sizeof(kPossibleAccelAddresses[0])); i++)
     {
-        masterXfer.slaveAddress = g_accel_address[i];
-
-        I2C_MasterTransferNonBlocking(BOARD_ACCEL_I2C_BASEADDR, &g_m_handle, &masterXfer);
-
-        /*  wait for transfer completed. */
-        while ((!nakFlag) && (!completionFlag))
+        g_accelAddress = kPossibleAccelAddresses[i];
+        if (kStatus_Success == AccelReadRegs(ACCEL_REG_WHO_AM_I, &whoAmI, 1U))
         {
-        }
-
-        nakFlag = false;
-
-        if (completionFlag == true)
-        {
-            completionFlag = false;
-            find_device = true;
-            g_accel_addr_found = masterXfer.slaveAddress;
-            break;
-        }
-    }
-
-    if (find_device == true)
-    {
-        masterXfer.direction = kI2C_Read;
-        masterXfer.subaddress = 0;
-        masterXfer.subaddressSize = 0;
-        masterXfer.data = &who_am_i_value;
-        masterXfer.dataSize = 1;
-        masterXfer.flags = kI2C_TransferRepeatedStartFlag;
-
-        I2C_MasterTransferNonBlocking(BOARD_ACCEL_I2C_BASEADDR, &g_m_handle, &masterXfer);
-
-        /*  wait for transfer completed. */
-        while ((!nakFlag) && (!completionFlag))
-        {
-        }
-
-        nakFlag = false;
-
-        if (completionFlag == true)
-        {
-            completionFlag = false;
-            if (who_am_i_value == FXOS8700_WHOAMI)
+            PRINTF("  probing 0x%02X: WHO_AM_I=0x%02X\r\n", g_accelAddress, whoAmI);
+            if ((whoAmI == FXOS8700_WHOAMI) || (whoAmI == MMA8451_WHOAMI))
             {
-                PRINTF("Found an FXOS8700 on board , the device address is 0x%x . \r\n", masterXfer.slaveAddress);
                 return true;
-            }
-            else if (who_am_i_value == MMA8451_WHOAMI)
-            {
-                PRINTF("Found an MMA8451 on board , the device address is 0x%x . \r\n", masterXfer.slaveAddress);
-                return true;
-            }
-            else
-            {
-                PRINTF("Found a device, the WhoAmI value is 0x%x\r\n", who_am_i_value);
-                PRINTF("It's not MMA8451 or FXOS8700. \r\n");
-                PRINTF("The device address is 0x%x. \r\n", masterXfer.slaveAddress);
-                return false;
             }
         }
         else
         {
-            PRINTF("Not a successful i2c communication \r\n");
-            return false;
+            PRINTF("  probing 0x%02X: no ACK\r\n", g_accelAddress);
         }
     }
-    else
-    {
-        PRINTF("\r\n Do not find an accelerometer device ! \r\n");
-        return false;
-    }
+    return false;
 }
 
-static bool I2C_WriteAccelReg(I2C_Type *base, uint8_t device_addr, uint8_t reg_addr, uint8_t value)
+static void InitAccelerometer(void)
 {
-    i2c_master_transfer_t masterXfer;
-    memset(&masterXfer, 0, sizeof(masterXfer));
+    i2c_master_config_t i2cConfig;
 
-    masterXfer.slaveAddress = device_addr;
-    masterXfer.direction = kI2C_Write;
-    masterXfer.subaddress = reg_addr;
-    masterXfer.subaddressSize = 1;
-    masterXfer.data = &value;
-    masterXfer.dataSize = 1;
-    masterXfer.flags = kI2C_TransferDefaultFlag;
+    I2cReleaseBus();
+    InitAccelI2cPins();
 
-    /*  direction=write : start+device_write;cmdbuff;xBuff; */
-    /*  direction=recive : start+device_write;cmdbuff;repeatStart+device_read;xBuff; */
+    I2C_MasterGetDefaultConfig(&i2cConfig);
+    i2cConfig.baudRate_Bps = ACCEL_I2C_BAUDRATE;
+    I2C_MasterInit(ACCEL_I2C_BASEADDR, &i2cConfig, CLOCK_GetFreq(kCLOCK_BusClk));
 
-    I2C_MasterTransferNonBlocking(BOARD_ACCEL_I2C_BASEADDR, &g_m_handle, &masterXfer);
-
-    /*  wait for transfer completed. */
-    while ((!nakFlag) && (!completionFlag))
+    PRINTF("Probing for FXOS8700CQ/MMA8451Q...\r\n");
+    if (!ProbeAccelAddress())
     {
+        PRINTF("No accelerometer found on any known address. Check wiring.\r\n");
+        while (1) { }
     }
+    PRINTF("Found accelerometer at address 0x%02X\r\n", g_accelAddress);
 
-    nakFlag = false;
-
-    if (completionFlag == true)
-    {
-        completionFlag = false;
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    /* Must be in standby to change most CTRL_REG1 bits. */
+    AccelWriteReg(ACCEL_REG_CTRL_REG1, 0x00U);
+    /* +/-4g range, 0.488 mg/LSB. */
+    AccelWriteReg(ACCEL_REG_XYZ_DATA_CFG, 0x01U);
+    /* 200 Hz data rate, low noise, active. */
+    AccelWriteReg(ACCEL_REG_CTRL_REG1, 0x0DU);
 }
 
-static bool I2C_ReadAccelRegs(I2C_Type *base, uint8_t device_addr, uint8_t reg_addr, uint8_t *rxBuff, uint32_t rxSize)
+static void ReadAccelMg(int16_t *xMg, int16_t *yMg, int16_t *zMg)
 {
-    i2c_master_transfer_t masterXfer;
-    memset(&masterXfer, 0, sizeof(masterXfer));
-    masterXfer.slaveAddress = device_addr;
-    masterXfer.direction = kI2C_Read;
-    masterXfer.subaddress = reg_addr;
-    masterXfer.subaddressSize = 1;
-    masterXfer.data = rxBuff;
-    masterXfer.dataSize = rxSize;
-    masterXfer.flags = kI2C_TransferDefaultFlag;
+    uint8_t raw[6];
+    int16_t rawX, rawY, rawZ;
 
-    /*  direction=write : start+device_write;cmdbuff;xBuff; */
-    /*  direction=recive : start+device_write;cmdbuff;repeatStart+device_read;xBuff; */
+    AccelReadRegs(ACCEL_REG_OUT_X_MSB, raw, 6U);
 
-    I2C_MasterTransferNonBlocking(BOARD_ACCEL_I2C_BASEADDR, &g_m_handle, &masterXfer);
+    /* Each axis is a 14-bit value left-justified in 16 bits: shift right 2
+       to drop the two unused low bits, keeping it signed. */
+    rawX = (int16_t)((raw[0] << 8) | raw[1]) >> 2;
+    rawY = (int16_t)((raw[2] << 8) | raw[3]) >> 2;
+    rawZ = (int16_t)((raw[4] << 8) | raw[5]) >> 2;
 
-    /*  wait for transfer completed. */
-    while ((!nakFlag) && (!completionFlag))
-    {
-    }
-
-    nakFlag = false;
-
-    if (completionFlag == true)
-    {
-        completionFlag = false;
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    /* +/-4g range: sensitivity is 2048 counts/g. */
+    *xMg = (int16_t)(((int32_t)rawX * 1000) / 2048);
+    *yMg = (int16_t)(((int32_t)rawY * 1000) / 2048);
+    *zMg = (int16_t)(((int32_t)rawZ * 1000) / 2048);
 }
 
-/*!
- * @brief Main function
- */
+static void SoftwareDelay(volatile uint32_t count)
+{
+    while (count--) { __asm volatile ("nop"); }
+}
+
 int main(void)
 {
-    bool isThereAccel = false;
     BOARD_InitPins();
     BOARD_BootClockRUN();
-    BOARD_I2C_ReleaseBus();
-    BOARD_I2C_ConfigurePins();
     BOARD_InitDebugConsole();
 
-    PRINTF("\r\nI2C example -- Read Accelerometer Value\r\n");
+    PRINTF("\r\n=== P1 04: I2C accelerometer reference ===\r\n");
 
-    I2C_MasterTransferCreateHandle(BOARD_ACCEL_I2C_BASEADDR, &g_m_handle, i2c_master_callback, NULL);
-    isThereAccel = I2C_ReadAccelWhoAmI();
+    InitAccelerometer();
 
-    /*  read the accel xyz value if there is accel device on board */
-    if (true == isThereAccel)
-    {
-        uint8_t databyte = 0;
-        uint8_t write_reg = 0;
-        uint8_t readBuff[7];
-        int16_t x, y, z;
-        uint8_t status0_value = 0;
-        uint32_t i = 0U;
-
-        /*  please refer to the "example FXOS8700CQ Driver Code" in FXOS8700 datasheet. */
-        /*  write 0000 0000 = 0x00 to accelerometer control register 1 */
-        /*  standby */
-        /*  [7-1] = 0000 000 */
-        /*  [0]: active=0 */
-        write_reg = ACCEL_CTRL_REG1;
-        databyte = 0;
-        I2C_WriteAccelReg(BOARD_ACCEL_I2C_BASEADDR, g_accel_addr_found, write_reg, databyte);
-
-        /*  write 0000 0001= 0x01 to XYZ_DATA_CFG register */
-        /*  [7]: reserved */
-        /*  [6]: reserved */
-        /*  [5]: reserved */
-        /*  [4]: hpf_out=0 */
-        /*  [3]: reserved */
-        /*  [2]: reserved */
-        /*  [1-0]: fs=01 for accelerometer range of +/-4g range with 0.488mg/LSB */
-        /*  databyte = 0x01; */
-        write_reg = ACCEL_XYZ_DATA_CFG;
-        databyte = 0x01;
-        I2C_WriteAccelReg(BOARD_ACCEL_I2C_BASEADDR, g_accel_addr_found, write_reg, databyte);
-
-        /*  write 0000 1101 = 0x0D to accelerometer control register 1 */
-        /*  [7-6]: aslp_rate=00 */
-        /*  [5-3]: dr=001 for 200Hz data rate (when in hybrid mode) */
-        /*  [2]: lnoise=1 for low noise mode */
-        /*  [1]: f_read=0 for normal 16 bit reads */
-        /*  [0]: active=1 to take the part out of standby and enable sampling */
-        /*   databyte = 0x0D; */
-        write_reg = ACCEL_CTRL_REG1;
-        databyte = 0x0d;
-        I2C_WriteAccelReg(BOARD_ACCEL_I2C_BASEADDR, g_accel_addr_found, write_reg, databyte);
-        PRINTF("The accel values:\r\n");
-        for (i = 0; i < ACCEL_READ_TIMES; i++)
-        {
-            status0_value = 0;
-            /*  wait for new data are ready. */
-            while (status0_value != 0xff)
-            {
-                I2C_ReadAccelRegs(BOARD_ACCEL_I2C_BASEADDR, g_accel_addr_found, ACCEL_STATUS, &status0_value, 1);
-            }
-
-            /*  Multiple-byte Read from STATUS (0x00) register */
-            I2C_ReadAccelRegs(BOARD_ACCEL_I2C_BASEADDR, g_accel_addr_found, ACCEL_STATUS, readBuff, 7);
-
-            status0_value = readBuff[0];
-            x = ((int16_t)(((readBuff[1] * 256U) | readBuff[2]))) / 4U;
-            y = ((int16_t)(((readBuff[3] * 256U) | readBuff[4]))) / 4U;
-            z = ((int16_t)(((readBuff[5] * 256U) | readBuff[6]))) / 4U;
-
-            PRINTF("status_reg = 0x%x , x = %5d , y = %5d , z = %5d \r\n", status0_value, x, y, z);
-        }
-    }
-
-    PRINTF("\r\nEnd of I2C example .\r\n");
     while (1)
     {
+        int16_t xMg, yMg, zMg;
+
+        ReadAccelMg(&xMg, &yMg, &zMg);
+        PRINTF("Accel X=%d Y=%d Z=%d mg\r\n", xMg, yMg, zMg);
+
+        SoftwareDelay(1000000U);
     }
 }

@@ -12,11 +12,15 @@ Everything from P0 (MCUXpresso IDE, the SDK, a serial terminal) still applies. O
 
 ## 6. Reading the Button Two Ways: Polling vs. Interrupt
 
-Start with `demo_code/01_button_polling_vs_interrupt/`, which is the SDK's own interrupt-driven button example (unmodified, already verified working). It configures SW1 (PTC3) to fire an interrupt on a falling edge (remember from Section 4: the button is pulled up internally, so idle = high, pressed = low, which is why "falling edge" means "pressed") and toggles the red LED from the ISR's flag.
+**Before touching any code, create one new project for the entire P1 dashboard**, via MCUXpresso's SDK wizard, the exact same steps as P0's manual, Section 9: device `MKL26Z128VLH4`, board files = **Default board files**, project type = **C Project**, SDK Debug Console = **UART**. Name it something like `p1_sensor_dashboard`. You'll keep building onto this same project all the way through Section 14; every `demo_code/` folder from here on is something to **read and copy logic from**, never a separate thing you build on its own.
 
-**Do this twice**, once each way, so the comparison is real and not hypothetical:
+This matters for a concrete reason: a wizard-created project uses MCUXpresso's normal managed build (the same one the P0 UART project used), with no CMake, no `armgcc` folder, and no relative-path setup to fight with. The older `driver_examples/`-style reference folders (which is what everything in `demo_code/` is) ship with a different, older build style meant for command-line/multi-IDE use, not smooth GUI onboarding; copying that style in is exactly the friction P0's manual warns about avoiding. The one setup step that's still manual either way is the PEmicro Debug Configuration (P0 manual, Section 8.1); set that up once for this project and reuse it for the rest of P1.
 
-1. **Polling version:** in your own project, configure SW1 as a plain GPIO input (no interrupt), and in `main()`'s `while(1)` loop, continuously call `GPIO_ReadPinInput()` and check whether it's low. Add nothing else to the loop. Notice: while you're doing this, the CPU is capable of doing literally nothing else. There's no room in that loop for the ADC read or the UART print you're about to add.
+`demo_code/01_button_polling_vs_interrupt/` is the SDK's own interrupt-driven button example (unmodified, already verified working). It configures SW1 (PTC3) to fire an interrupt on a falling edge (remember from Section 4: the button is pulled up internally, so idle = high, pressed = low, which is why "falling edge" means "pressed") and toggles the red LED from the ISR's flag. Read it for the exact register calls; you don't need to build that folder itself.
+
+**Do the actual exercise twice**, once each way, so the comparison is real and not hypothetical, both inside your one dashboard project:
+
+1. **Polling version:** configure SW1 as a plain GPIO input (no interrupt), and in `main()`'s `while(1)` loop, continuously call `GPIO_ReadPinInput()` and check whether it's low. Add nothing else to the loop. Notice: while you're doing this, the CPU is capable of doing literally nothing else. There's no room in that loop for the ADC read or the UART print you're about to add.
 2. **Interrupt version:** configure the pin per `demo_code/01_button_polling_vs_interrupt/`, using `PORT_SetPinInterruptConfig()` and an ISR that only sets a flag (never do real work inside an ISR; keep it as short as possible; Section 7 explains why). `main()` checks the flag instead of the raw pin.
 
 **The comparison to write down** (you'll need this for WS3's "explain every peripheral you used" demo): in the polling version, how much of the CPU's time is spent doing nothing but checking a pin? In the interrupt version, main() is free to do the ADC read and UART print from Section 9 in the same loop, because it's not stuck waiting on the button. That's the entire argument for interrupts in one sentence, and you should be able to say it in your own words.
@@ -51,6 +55,14 @@ You don't calculate these by hand in code (the SDK does it), but you should be a
 Copy the setup from `demo_code/03_adc_reference/` (SDK's `adc16_polling` example): it reads ADC0_SE23 on PTE30, a general-purpose analog header pin, at the default 12-bit single-ended resolution (0 to 4095 counts) against the board's ~3.3V analog reference.
 
 **The conversion you need to understand and reproduce:** `voltage = (raw_counts / 4095.0) * 3.3`. Print both the raw count and the computed voltage over UART at 1 Hz for this session's deliverable (Section 6's PIT-based tick, covered fully in Section 14, is the clean way to get a steady 1 Hz cadence; a simple software delay loop is acceptable for this specific milestone if you haven't reached Section 14 yet, but replace it before Session 2).
+
+**Print it as integer millivolts, not a `%f` float.** Your wizard project (Section 6) links Redlib, the same library behind P0's `%08lX` gotcha, and Redlib's default build here also has `PRINTF_FLOAT_ENABLE` off, meaning `%f`/`%.2f` don't print anything at all, not even garbage, just nothing where the number should be. Do the voltage math in integer millivolts instead of floating-point volts, and use plain `%u` (no `l`, same reason as the `%08X` fix in P0):
+```c
+uint32_t raw = ADC16_GetChannelConversionValue(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP);
+uint32_t millivolts = (raw * 3300u) / 4095u;
+PRINTF("ADC Value: %u (%u mV)\r\n", raw, millivolts);
+```
+This isn't a workaround to feel bad about, either: doing the scaling as integer math instead of floating-point is the same fixed-point habit P3 teaches deliberately later in the series, because this chip has no hardware floating-point unit at all; you're just meeting that reality a bit earlier than planned.
 
 Nothing is physically connected to this pin by default; a floating (unconnected) analog input will read noisy, semi-random values. If your group has a potentiometer or photoresistor available, wiring one to this header pin (with the other leg to 3.3V or ground as appropriate) gives you a real signal to read instead of noise, and this is also the practical substitute mentioned in the P0 manual's ambient-light-sensor callout, since this is the same channel (PTE30/ADC0_SE23) that exercise would use.
 

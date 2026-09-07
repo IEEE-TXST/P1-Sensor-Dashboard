@@ -116,6 +116,14 @@ int main(void)
                       ADC16_GetChannelStatusFlags(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP)))
         {
         }
-        PRINTF("ADC Value: %d\r\n", ADC16_GetChannelConversionValue(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP));
+        {
+            /* Default config resolves to 12-bit (0-4095) against a 3300 mV
+               reference. Millivolts computed as integer math on purpose:
+               this build's Redlib config has PRINTF_FLOAT_ENABLE=0, so %f
+               prints nothing at all. See the manual, Section 9. */
+            uint32_t raw = ADC16_GetChannelConversionValue(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP);
+            uint32_t mv = (raw * 3300U) / 4095U;
+            PRINTF("ADC Value: %u (%u mV)\r\n", raw, mv);
+        }
     }
 }
