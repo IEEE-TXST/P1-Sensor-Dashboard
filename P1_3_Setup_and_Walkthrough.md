@@ -12,9 +12,13 @@ Everything from P0 (MCUXpresso IDE, the SDK, a serial terminal) still applies. O
 
 ## 6. Reading the Button Two Ways: Polling vs. Interrupt
 
-**Before touching any code, create one new project for the entire P1 dashboard**, via MCUXpresso's SDK wizard, the exact same steps as P0's manual, Section 9: device `MKL26Z128VLH4`, board files = **Default board files**, project type = **C Project**, SDK Debug Console = **UART**. Name it something like `p1_sensor_dashboard`. You'll keep building onto this same project all the way through Section 14; every `demo_code/` folder from here on is something to **read and copy logic from**, never a separate thing you build on its own.
+**Before touching any code, create one new project for the entire P1 dashboard**, via MCUXpresso's SDK wizard, the exact same steps as P0's manual, Section 9: device `MKL26Z128VLH4`, board files = **Default board files**, project type = **C Project**, SDK Debug Console = **UART**. Name it something like `p1_sensor_dashboard`.
 
-This matters for a concrete reason: a wizard-created project uses MCUXpresso's normal managed build (the same one the P0 UART project used), with no CMake, no `armgcc` folder, and no relative-path setup to fight with. The older `driver_examples/`-style reference folders (which is what everything in `demo_code/` is) ship with a different, older build style meant for command-line/multi-IDE use, not smooth GUI onboarding; copying that style in is exactly the friction P0's manual warns about avoiding. The one setup step that's still manual either way is the PEmicro Debug Configuration (P0 manual, Section 8.1); set that up once for this project and reuse it for the rest of P1.
+You'll keep building onto this same project all the way through Section 14; every `demo_code/` folder from here on is something to **read and copy logic from**, never a separate thing you build on its own.
+
+This matters for a concrete reason: a wizard-created project uses MCUXpresso's normal managed build (the same one the P0 UART project used), with no CMake, no `armgcc` folder, and no relative-path setup to fight with. The older `driver_examples/`-style reference folders (which is what everything in `demo_code/` is) ship with a different, older build style meant for command-line/multi-IDE use, not smooth GUI onboarding; copying that style in is exactly the friction P0's manual warns about avoiding.
+
+The one setup step that's still manual either way is the PEmicro Debug Configuration (P0 manual, Section 8.1); set that up once for this project and reuse it for the rest of P1.
 
 `demo_code/01_button_polling_vs_interrupt/` is the SDK's own interrupt-driven button example (unmodified, already verified working). It configures SW1 (PTC3) to fire an interrupt on a falling edge (remember from Section 4: the button is pulled up internally, so idle = high, pressed = low, which is why "falling edge" means "pressed") and toggles the red LED from the ISR's flag. Read it for the exact register calls; you don't need to build that folder itself.
 
@@ -85,7 +89,9 @@ Per the Fall 2026 schedule, Sep 17 is a guest speaker day with no project work; 
 
 The accelerometer is a Freescale/NXP FXOS8700CQ (6-axis: 3-axis accelerometer plus 3-axis magnetometer; this project only uses the accelerometer half). `demo_code/04_i2c_accelerometer_reference/` is the SDK's own address-probing example; `demo_code/07_full_dashboard_reference/dashboard_main.c` (functions `AccelReadRegs`, `AccelWriteReg`, `InitAccelerometer`, `ReadAccelMg`) is a cleaner version of the same sequence, based on NXP's own `fsl_fxos.c` driver wrapper (from the `ecompass` demo app) rather than the more verbose raw example.
 
-**Why you probe for the address instead of hardcoding it:** the chip's I2C address depends on a hardware strapping pin that can differ by board revision, so the same firmware needs to work whether the device answers at `0x1C`, `0x1D`, `0x1E`, or `0x1F`. The standard technique, used identically in both the raw SDK example and NXP's own official demo, is to try each address in turn and read the `WHO_AM_I` register (`0x0D`); the FXOS8700CQ always answers with `0xC7` regardless of which address it's listening on, so that's how you confirm you've found it (and that it's the chip you think it is, not some other I2C device).
+**Why you probe for the address instead of hardcoding it:** the chip's I2C address depends on a hardware strapping pin that can differ by board revision, so the same firmware needs to work whether the device answers at `0x1C`, `0x1D`, `0x1E`, or `0x1F`.
+
+The standard technique, used identically in both the raw SDK example and NXP's own official demo, is to try each address in turn and read the `WHO_AM_I` register (`0x0D`); the FXOS8700CQ always answers with `0xC7` regardless of which address it's listening on, so that's how you confirm you've found it (and that it's the chip you think it is, not some other I2C device).
 
 **The register sequence to bring the sensor from power-on to producing data:**
 
@@ -96,7 +102,11 @@ The accelerometer is a Freescale/NXP FXOS8700CQ (6-axis: 3-axis accelerometer pl
 
 **Converting the raw bytes to milli-g:** each axis's raw 16-bit value is left-justified, meaning only the top 14 bits are real data and the bottom 2 are padding; dividing by 4 (an arithmetic right shift by 2) recovers the true 14-bit signed reading. Multiply by 0.488 (the mg-per-count figure from step 2) to get milli-g. `ReadAccelMg()` in the combined reference does exactly this.
 
-**This is also where "why I2C blocks the CPU" becomes real, not theoretical.** `I2C_MasterTransferBlocking()` does exactly what its name says: it does not return until the entire I2C transaction (addressing the device, sending the register number, receiving the data, one bit at a time, at 100 kHz) has physically finished. At 100 kHz, transferring even a handful of bytes takes real, measurable time, tens of microseconds, during which your CPU, capable of executing tens of thousands of instructions per millisecond, is doing nothing but waiting for a comparatively glacial hardware bus. This is intentional in P1: you're meant to notice this cost. P3 introduces DMA specifically to remove it for the ADC pipeline; the same argument applies to I2C, which is why some production designs use non-blocking I2C with DMA too, though that's beyond this semester's scope.
+**This is also where "why I2C blocks the CPU" becomes real, not theoretical.** `I2C_MasterTransferBlocking()` does exactly what its name says: it does not return until the entire I2C transaction (addressing the device, sending the register number, receiving the data, one bit at a time, at 100 kHz) has physically finished.
+
+At 100 kHz, transferring even a handful of bytes takes real, measurable time, tens of microseconds, during which your CPU, capable of executing tens of thousands of instructions per millisecond, is doing nothing but waiting for a comparatively glacial hardware bus.
+
+This is intentional in P1: you're meant to notice this cost. P3 introduces DMA specifically to remove it for the ADC pipeline; the same argument applies to I2C, which is why some production designs use non-blocking I2C with DMA too, though that's beyond this semester's scope.
 
 ## 13. Touch Slider: From Raw Counters to a Position
 
