@@ -39,24 +39,14 @@
  * stuck on the timer configuration specifically.
  */
 
-/*
- * WHAT: Toggles the red LED and prints a message exactly once per second,
- * forever, driven by a hardware timer interrupt rather than a busy-wait
- * delay.
- *
- * HOW: Configure the PIT (Periodic Interrupt Timer) channel 0 to count down
- * from a value equal to exactly one second at the bus clock frequency, and
- * fire an interrupt each time it reaches zero (auto-reloading and
- * repeating). The interrupt handler sets a flag; main() reacts to the flag.
- *
- * WHY: P0's LED demo paced itself with a busy-wait delay() loop, which
- * wastes CPU cycles and whose timing drifts if the CPU clock speed ever
- * changes. A hardware timer like the PIT counts real time accurately in the
- * background and only interrupts the CPU exactly when needed, the same
- * flag-in-handler, react-in-main() pattern as the button interrupt demo.
- * This is also the exact mechanism the full dashboard (Session 7) uses to
- * pace its 5 Hz print rate.
- */
+/* Toggles the red LED and prints once per second, forever, driven by a
+   hardware timer interrupt instead of a busy-wait delay. P0's LED demo
+   paced itself with delay(), which wastes CPU cycles and drifts if the
+   clock speed ever changes; the PIT counts real time accurately in the
+   background and only interrupts the CPU when needed, the same
+   flag-in-handler, react-in-main() pattern as the button interrupt demo.
+   This is also the exact mechanism the full dashboard (Session 7) uses to
+   pace its 5 Hz print rate. */
 #include "fsl_debug_console.h"
 #include "board.h"
 #include "fsl_pit.h"
@@ -69,11 +59,8 @@
 #define PIT_LED_HANDLER PIT_IRQHandler
 #define PIT_IRQ_ID PIT_IRQn
 /* Get source clock for PIT driver */
-/*
- * WHAT: The real clock frequency the PIT's counter runs from.
- * WHY: PIT_SetTimerPeriod below needs this value to correctly translate a
- * time in microseconds into the right number of clock ticks to count down.
- */
+/* PIT_SetTimerPeriod below needs this real clock frequency to translate a
+   time in microseconds into the right number of ticks to count down. */
 #define PIT_SOURCE_CLOCK CLOCK_GetFreq(kCLOCK_BusClk)
 #define LED_INIT() LED_RED_INIT(LOGIC_LED_ON)
 #define LED_TOGGLE() LED_RED_TOGGLE()
@@ -86,26 +73,19 @@
  * Variables
  ******************************************************************************/
 
-/*
- * WHAT: Set by the interrupt handler, cleared by main() after it reacts.
- * WHY: volatile for the same reason as the button demo's g_ButtonPress:
- * this variable is written from an interrupt context and read from normal
- * code, so the compiler must not cache a stale copy of it in a register.
- */
+/* Set by the interrupt handler, cleared by main() after reacting. volatile
+   for the same reason as the button demo's g_ButtonPress: written from an
+   interrupt, read from normal code, so the compiler must not cache a stale
+   copy. */
 volatile bool pitIsrFlag = false;
 
 /*******************************************************************************
  * Code
  ******************************************************************************/
-/*
- * WHAT: Runs automatically once per second, when PIT channel 0 reaches
- * zero.
- * HOW: Clears the channel's timer flag (required so the same interrupt
- * doesn't appear to still be pending), then sets pitIsrFlag.
- * WHY: Kept minimal on purpose, same reasoning as every other interrupt
- * handler in this series: do the least possible work here, let main()'s
- * normal code do the actual reacting.
- */
+/* Runs automatically once per second, when PIT channel 0 reaches zero.
+   Clears the channel's timer flag (required, or the interrupt looks still
+   pending) and sets pitIsrFlag, nothing else, same minimal-handler
+   discipline as every other interrupt in this series. */
 void PIT_LED_HANDLER(void)
 {
     /* Clear interrupt flag.*/
@@ -132,64 +112,44 @@ int main(void)
     /*
      * pitConfig.enableRunInDebug = false;
      */
-    /*
-     * WHAT: Fills pitConfig with the driver's default settings, then
-     * applies them to the real PIT peripheral.
-     * WHY: Same two-step (fill a struct, then apply it) pattern used
-     * throughout this series for every peripheral: TPM, ADC, GPIO, and now
-     * PIT all follow it.
-     */
+    /* Fills pitConfig with defaults, then applies them to the real PIT
+       peripheral; same fill-struct-then-apply pattern TPM, ADC, and GPIO
+       all follow too. */
     PIT_GetDefaultConfig(&pitConfig);
 
     /* Init pit module */
     PIT_Init(PIT, &pitConfig);
 
     /* Set timer period for channel 0 */
-    /*
-     * WHAT: Tells channel 0 how many clock ticks to count down before
-     * firing.
-     * HOW: USEC_TO_COUNT converts a time in microseconds (1,000,000 us = 1
-     * second) into the equivalent number of PIT_SOURCE_CLOCK ticks.
-     * WHY: The PIT hardware only understands raw tick counts, not
-     * human units like seconds; this macro does that unit conversion so
-     * the code here reads as "one second" instead of a magic tick number
-     * that would silently be wrong if the bus clock frequency ever changed.
-     */
+    /* USEC_TO_COUNT converts a human time (1,000,000 us = 1 second) into
+       the equivalent PIT_SOURCE_CLOCK tick count, since the hardware only
+       understands raw ticks. Using the macro means this reads as "one
+       second" instead of a magic number that would silently be wrong if
+       the bus clock ever changed. */
     PIT_SetTimerPeriod(PIT, kPIT_Chnl_0, USEC_TO_COUNT(1000000U, PIT_SOURCE_CLOCK));
 
     /* Enable timer interrupts for channel 0 */
     PIT_EnableInterrupts(PIT, kPIT_Chnl_0, kPIT_TimerInterruptEnable);
 
     /* Enable at the NVIC */
-    /*
-     * WHAT: Turns on this interrupt at the chip's interrupt controller.
-     * WHY: Same two-level enable requirement as the button interrupt demo:
-     * the peripheral's own interrupt-enable bit (just above) and the NVIC's
-     * enable (here) are both required before an interrupt actually reaches
-     * the CPU.
-     */
+    /* Same two-level enable as the button demo: the peripheral's own
+       interrupt-enable bit (above) and the NVIC's enable (here) are both
+       required before the interrupt actually reaches the CPU. */
     EnableIRQ(PIT_IRQ_ID);
 
     /* Start channel 0 */
     PRINTF("\r\nStarting channel No.0 ...");
-    /*
-     * WHAT: Starts channel 0's countdown.
-     * WHY: Like TPM_StartTimer in the PWM demo, configuring the timer's
-     * period doesn't start it counting; this explicit start call does.
-     * Before this line, the interrupt handler above could never fire.
-     */
+    /* Configuring the period doesn't start the countdown; this call does,
+       same as TPM_StartTimer in the PWM demo. Before this line the
+       interrupt handler above could never fire. */
     PIT_StartTimer(PIT, kPIT_Chnl_0);
 
-    /*
-     * WHAT: Waits for the once-per-second flag and reacts to it.
-     * HOW: Identical shape to the button-interrupt demo's main loop: check
-     * a flag set by an interrupt handler, act on it, clear it.
-     * WHY: Between ticks, this loop just spins doing nothing, since there's
-     * no other work for this simple demo to do; in a real program, this is
-     * exactly where you'd put other work that should keep running between
-     * timer ticks, since the PIT interrupt fires independently of whatever
-     * this loop is doing.
-     */
+    /* Waits for the once-per-second flag and reacts: print, toggle, clear.
+       Identical shape to the button-interrupt demo's main loop. Between
+       ticks this spins doing nothing since there's no other work for this
+       demo; in a real program this is exactly where other work would run,
+       since the PIT interrupt fires independently of whatever the loop is
+       doing. */
     while (true)
     {
         /* Check whether occur interupt and toggle LED */

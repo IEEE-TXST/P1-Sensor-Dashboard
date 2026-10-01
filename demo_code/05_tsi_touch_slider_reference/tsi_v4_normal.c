@@ -48,25 +48,17 @@
  * open this only if stuck.
  */
 
-/*
- * WHAT: Detects a finger touching one of two capacitive touch pads (no
- * physical switch, no moving parts) and toggles the red LED each time pad
- * E1 is touched.
- *
- * HOW: TSI (Touch Sensing Input) measures how a pad's electrical
- * capacitance changes when a finger is near it. This file shows the same
- * underlying measurement three ways, in order: (1) a single software-
- * triggered read where the CPU busy-waits for the result, (2) the same
- * software-triggered read but using an interrupt instead of busy-waiting,
- * and (3) the mode that actually runs forever at the end: a hardware-
- * triggered scan, fired automatically every 200ms by the LPTMR timer, with
- * no CPU polling involved between scans.
- *
- * WHY: Showing three ways to get the same measurement, right next to each
- * other, makes the polling-vs-interrupt-vs-hardware-triggered progression
- * concrete on a single peripheral, reinforcing the same theme the
- * button-interrupt and PIT demos introduced separately.
- */
+/* Detects a finger touching one of two capacitive touch pads and toggles
+   the red LED each time pad E1 is touched. TSI measures how a pad's
+   capacitance changes near a finger. This file shows the same measurement
+   three ways in order: (1) one software-triggered read with the CPU
+   busy-waiting, (2) the same read using an interrupt instead of
+   busy-waiting, and (3) the mode that actually runs forever at the end: a
+   hardware-triggered scan fired automatically every 200ms by the LPTMR,
+   zero CPU polling between scans. Showing all three back to back makes the
+   polling-vs-interrupt-vs-hardware-triggered progression concrete on one
+   peripheral, the same theme the button-interrupt and PIT demos introduced
+   separately. */
 #include "board.h"
 #include "fsl_tsi_v4.h"
 #include "fsl_debug_console.h"
@@ -87,24 +79,16 @@
 /* Get source clock for LPTMR driver */
 #define LPTMR_SOURCE_CLOCK CLOCK_GetFreq(kCLOCK_LpoClk)
 /* Define LPTMR microseconds counts value */
-/*
- * WHAT: How often (in microseconds) the LPTMR fires the hardware-triggered
- * TSI scan in Part 3 below.
- * WHY: 200ms is frequent enough to feel responsive to a human touching the
- * pad, but infrequent enough that continuous scanning doesn't need to run
- * constantly, exactly the same "responsive but not wasteful" tradeoff every
- * periodic-timer design in this series makes.
- */
+/* How often (us) the LPTMR fires the hardware-triggered scan in Part 3.
+   200ms feels responsive to a human touch without scanning constantly,
+   the same "responsive but not wasteful" tradeoff every periodic-timer
+   design in this series makes. */
 #define LPTMR_USEC_COUNT (200000U)
 /* Define the delta value to indicate a touch event */
-/*
- * WHAT: How far a channel's live counter reading must rise above its
- * calibrated baseline before it counts as "touched".
- * WHY: A pad's raw counter value is never exactly the same twice, even
- * with no finger present (electrical noise, temperature drift); a fixed
- * threshold above the calibrated baseline is what turns a noisy analog
- * signal into a clean digital touched/not-touched decision.
- */
+/* How far a channel's live reading must rise above its calibrated baseline
+   to count as "touched". A pad's raw value is never exactly the same
+   twice even untouched (noise, temperature drift); this fixed threshold
+   turns that noisy signal into a clean touched/not-touched decision. */
 #define TOUCH_DELTA_VALUE 100U
 
 /*******************************************************************************
@@ -114,31 +98,22 @@
 /*******************************************************************************
  * Variables
  ******************************************************************************/
-/*
- * WHAT: Holds the "resting" (no-touch) counter value for every TSI channel,
- * measured once at startup.
- * WHY: TSI_Calibrate (below) fills this once; every later touch decision
- * compares a live reading against this stored baseline, not against a
- * fixed absolute number, since the untouched baseline varies board to
- * board and pad to pad.
- */
+/* Holds each TSI channel's "resting" (no-touch) counter value, measured
+   once at startup by TSI_Calibrate below. Every later touch decision
+   compares a live reading against this stored baseline rather than a
+   fixed absolute number, since the untouched baseline varies board to
+   board and pad to pad. */
 tsi_calibration_data_t buffer;
 
 /*******************************************************************************
  * Code
  ******************************************************************************/
-/*
- * WHAT: Runs automatically at the end of every hardware-triggered scan
- * (Part 3 below); this is where the actual touch-to-LED-toggle logic lives.
- * HOW: Checks that the scan just completed was measuring electrode 1 (TSI
- * only watches one channel per scan), then compares the live counter
- * against that channel's calibrated baseline plus the touch threshold; if
- * it's over, toggles the LED.
- * WHY: This handler only exists because Part 3 configures TSI for
- * hardware-triggered, interrupt-driven scanning; Parts 1 and 2 above
- * demonstrate reading the same hardware without ever needing this handler
- * to fire.
- */
+/* Runs at the end of every hardware-triggered scan (Part 3); this is where
+   the actual touch-to-LED logic lives. Checks the scan just measured
+   electrode 1, compares its counter against the calibrated baseline plus
+   the touch threshold, and toggles the LED if over. Only exists because
+   Part 3 configures TSI for hardware-triggered, interrupt-driven scanning;
+   Parts 1 and 2 read the same hardware without ever needing this handler. */
 void TSI0_IRQHandler(void)
 {
     if (TSI_GetMeasuredChannelNumber(TSI0) == BOARD_TSI_ELECTRODE_1)
@@ -181,15 +156,11 @@ int main(void)
      * lptmrConfig.prescalerClockSource = kLPTMR_PrescalerClock_1;
      * lptmrConfig.value = kLPTMR_Prescale_Glitch_0;
      */
-    /*
-     * WHAT: Prepares both the LPTMR (used later in Part 3 to auto-trigger
-     * scans) and the TSI module itself with their default settings.
-     * WHY: LPTMR (Low-Power Timer) is set up here, before it's actually
-     * started, because Part 3 needs it ready to go the moment hardware
-     * triggering is enabled; TSI_GetNormalModeDefaultConfig gives the
-     * standard sensitivity/scan settings appropriate for on-board pads like
-     * these.
-     */
+    /* Prepares the LPTMR (used in Part 3 to auto-trigger scans) and the
+       TSI module itself with defaults. LPTMR is set up now, before it's
+       started, so it's ready the moment hardware triggering is enabled;
+       TSI_GetNormalModeDefaultConfig gives standard sensitivity/scan
+       settings appropriate for on-board pads. */
     LPTMR_GetDefaultConfig(&lptmrConfig);
     /* TSI default hardware configuration for normal mode */
     TSI_GetNormalModeDefaultConfig(&tsiConfig_normal);
@@ -207,17 +178,11 @@ int main(void)
 
     PRINTF("\r\nTSI_V4 Normal_mode Example Start!\r\n");
     /*********  CALIBRATION PROCESS ************/
-    /*
-     * WHAT: Measures and stores each channel's untouched baseline counter
-     * value.
-     * HOW: TSI_Calibrate runs a scan across all channels with (presumably)
-     * no finger touching anything, and records the results into `buffer`.
-     * WHY: This baseline is what every later touch decision, in
-     * TSI0_IRQHandler above and the polling checks below, gets compared
-     * against; without it there'd be no reference point to detect a rise in
-     * capacitance at all. This is also why you shouldn't be touching either
-     * pad the moment this runs.
-     */
+    /* Measures and stores each channel's untouched baseline counter.
+       TSI_Calibrate scans all channels with (presumably) no finger
+       touching anything and records the results into `buffer`, the
+       reference point every later touch decision compares against, which
+       is why you shouldn't be touching either pad the moment this runs. */
     memset((void *)&buffer, 0, sizeof(buffer));
     TSI_Calibrate(TSI0, &buffer);
     /* Print calibrated counter values */
@@ -227,15 +192,11 @@ int main(void)
     }
 
     /********** SOFTWARE TRIGGER SCAN USING POLLING METHOD ********/
-    /*
-     * WHAT (Part 1): Reads both electrodes once each, the CPU busy-waiting
-     * for each scan to finish.
-     * HOW: Disable hardware triggering, pick a channel, start a software
-     * trigger, then spin-check the end-of-scan flag until it's set, exactly
-     * the same polling pattern the ADC demo uses.
-     * WHY: Shown first because it's the simplest possible way to get one
-     * TSI reading, at the cost of blocking the CPU while the scan runs.
-     */
+    /* Part 1: reads both electrodes once each, CPU busy-waiting for each
+       scan (disable hardware triggering, pick a channel, trigger, spin on
+       the end-of-scan flag, same pattern the ADC demo uses). Shown first
+       as the simplest possible single reading, at the cost of blocking
+       the CPU while the scan runs. */
     PRINTF("\r\nNOW, comes to the software trigger scan using polling method!\r\n");
     TSI_EnableHardwareTriggerScan(TSI0, false); /* Enable software trigger scan */
     TSI_DisableInterrupts(TSI0, kTSI_EndOfScanInterruptEnable);
@@ -259,15 +220,11 @@ int main(void)
     TSI_ClearStatusFlags(TSI0, kTSI_OutOfRangeFlag);
 
     /********** SOFTWARE TRIGGER SCAN USING INTERRUPT METHOD ********/
-    /*
-     * WHAT (Part 2): Reads both electrodes once each again, but waits on
-     * TSI_IsScanInProgress instead of the raw status flag, with interrupts
-     * enabled.
-     * WHY: A stepping stone between Part 1 and Part 3: interrupts are
-     * turned on here (so TSI0_IRQHandler now runs at end-of-scan), but the
-     * main flow still explicitly waits for each scan rather than reacting
-     * asynchronously, unlike Part 3's fully event-driven design.
-     */
+    /* Part 2: reads both electrodes again, but waits on
+       TSI_IsScanInProgress with interrupts enabled, a stepping stone
+       between Part 1 and 3: TSI0_IRQHandler now runs at end-of-scan, but
+       the main flow still explicitly waits for each scan rather than
+       reacting asynchronously. */
     PRINTF("\r\nNOW, comes to the software trigger scan using interrupt method!\r\n");
     TSI_EnableInterrupts(TSI0, kTSI_GlobalInterruptEnable);
     TSI_EnableInterrupts(TSI0, kTSI_EndOfScanInterruptEnable);
@@ -287,21 +244,14 @@ int main(void)
     PRINTF("Channel %d Normal mode counter is: %d \r\n", BOARD_TSI_ELECTRODE_2, TSI_GetCounter(TSI0));
 
     /********** HARDWARE TRIGGER SCAN ********/
-    /*
-     * WHAT (Part 3): Switches to fully automatic scanning, LPTMR firing a
-     * new scan every 200ms with zero CPU involvement between scans, and
-     * this is what's actually running for the rest of the program's life.
-     * HOW: Re-enable the TSI module in hardware-trigger mode, lock in
-     * electrode 1 as the channel every triggered scan will measure, then
-     * start the LPTMR counting; from this point on, LPTMR0 reaching its
-     * 200ms period is what fires each scan, and TSI0_IRQHandler (defined
-     * above) is what reacts to each scan's result.
-     * WHY: This is the design actually worth using in a real product:
-     * continuous touch sensing with the CPU free to sleep or do other work
-     * between the (rare, 5-per-second) moments a scan actually completes,
-     * the same hardware-does-the-work-CPU-just-reacts idea as PWM (TPM) and
-     * later, DMA in P3.
-     */
+    /* Part 3: switches to fully automatic scanning, LPTMR firing a new
+       scan every 200ms with zero CPU involvement, running for the rest of
+       the program's life. Re-enables TSI in hardware-trigger mode, locks
+       in electrode 1 as the measured channel, then starts the LPTMR; from
+       here, reaching the 200ms period fires each scan and
+       TSI0_IRQHandler reacts. This is the design worth using in a real
+       product: continuous sensing with the CPU free between scans, the
+       same hardware-does-the-work idea as PWM and, later, DMA in P3. */
     PRINTF("\r\nNOW, comes to the hardware trigger scan method!\r\n");
     PRINTF("After running, touch pad %s each time, you will see LED toggles.\r\n", PAD_TSI_ELECTRODE_1_NAME);
     TSI_EnableModule(TSI0, false);
@@ -314,11 +264,8 @@ int main(void)
     TSI_EnableModule(TSI0, true);
     LPTMR_StartTimer(LPTMR0); /* Start LPTMR triggering */
 
-    /*
-     * WHAT: Idles forever; all the real work now happens in
-     * TSI0_IRQHandler, fired automatically by the LPTMR-triggered scans
-     * configured just above.
-     */
+    /* Idles forever; all real work now happens in TSI0_IRQHandler, fired
+       automatically by the LPTMR-triggered scans configured above. */
     while (1)
     {
     }
