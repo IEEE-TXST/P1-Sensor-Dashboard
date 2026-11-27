@@ -5,7 +5,7 @@
 **Track:** Embedded Systems | **Difficulty:** Beginner to Intermediate | **Sessions:** 2 (WS2, Sep 10 and WS3, Sep 24, 2026), with independent work between sessions
 **Applies to:** All 8 groups (24 members)
 **Companion documents:** *IEEE TXST Project Developer Guideline*, *TXST IEEE FRDM-KL26Z Project Specification*, P0's manual (`P0_Board_Orientation_and_Toolchain_Setup/`, start at `P0_1_Start_Here.md`; read this one first if you haven't done P0)
-**Demo code:** see `demo_code/` in this project's folder
+**Demo code:** see `demo_code/` in this project's folder. These are step-by-step code files with the explanation written inside them; see `demo_code/README.md`.
 
 ---
 
@@ -24,7 +24,7 @@ Section numbers (0-22) are kept consistent across all 4 files, so "see Section 1
 
 ## How to Use This Manual
 
-Same rule as P0: this is a reference, not required reading. Build the dashboard hands-on, and open this document when something doesn't make sense, not before. Project leaders are the exception, read it end to end and bench-test Sections 6 through 15 on a physical board before WS2 and WS3.
+**Your main guide is the code files in `demo_code/` (01 to 07), done in order.** Each is a step-by-step file with the explanation written inside it; you paste it into one wizard project, replace that project's `pin_mux.c` with the demo's, and switch the code on one step at a time. Setup is in `P1_3_Setup_and_Walkthrough.md` Section 6. This manual is a reference, not required reading: open it when something doesn't make sense, not before. Project leaders are the exception, read it end to end and bench-test Sections 6 through 15 on a physical board before WS2 and WS3.
 
 This manual assumes you've completed P0. It does not re-explain what a microcontroller is, what flashing means, or how OpenSDA works; see `P0_2_Concepts_and_Hardware.md`, Section 1, if any of that is fuzzy.
 

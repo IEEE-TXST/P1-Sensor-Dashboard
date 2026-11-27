@@ -28,31 +28,64 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * P1 Session 1 reference: interrupt-driven button read. A falling-edge
- * interrupt on the switch pin sets a flag; main() polls that flag instead
- * of polling the pin itself, so the CPU is free the rest of the time. See
- * the manual, Sections 6 to 7, for the polling-vs-interrupt comparison and
- * why plain interrupt firing isn't the same thing as debouncing.
- *
- * The button this code calls "SW1" (BOARD_SW1_NAME, PTC3) may be printed
- * as SW2 on your board's silkscreen; the SDK's board.h naming and the
- * physical label don't always agree on this board. Press whichever
- * physical button is wired to PTC3 and it will work regardless of what
- * it's labeled.
- *
- * Reference only. Get your own polling version working first; open this
- * only if stuck on the interrupt setup specifically.
- */
 
-/* Toggles the red LED each time a button is pressed, using a hardware
-   interrupt instead of a polling loop. The button pin fires on a falling
-   edge (this active-low button goes high-to-low when pressed); the ISR
-   does the smallest possible amount of work (clear the flag, set a
-   variable) and main() reacts to that variable. This hardware-event-sets-
-   a-flag, main-reacts-to-it pattern shows up again and again later in this
-   series. See P1_2_Concepts_and_Hardware.md for the polling-vs-interrupt
-   comparison. */
+/* ==========================================================================
+ *  P1 DEMO 1: BUTTON + INTERRUPT, A STEP-BY-STEP LADDER
+ * ==========================================================================
+ *
+ *  Goal: press a button, and the red LED toggles. You will do it with an
+ *  INTERRUPT instead of constantly checking the button.
+ *
+ *  This file starts almost empty on purpose. The code for each step is
+ *  already here, but turned OFF (commented out). You switch it on one step
+ *  at a time, run it on the board, and see what changed.
+ *
+ *  BEFORE YOU START: SET UP YOUR PROJECT (3 quick steps)
+ *
+ *    1. Create a new project with the SDK wizard. The P0 manual, Section 9,
+ *       Step 1, shows exactly how.
+ *    2. Paste this whole file over the contents of your project's main
+ *       source file.
+ *    3. Replace your project's pin_mux.c with the pin_mux.c that sits next
+ *       to this file. It tells the chip which pins are the LED, the button
+ *       and so on. Forget it and the program still builds and runs, but
+ *       the LED or button does nothing, with no error message at all.
+ *
+ *  HOW TO USE THIS FILE
+ *
+ *    1. Read the STEP box. It explains the idea in plain words.
+ *    2. Select ALL the grey "//" code lines under it (the whole block).
+ *    3. Press  Cmd + /  (Mac)  or  Ctrl + /  (Windows)  to turn them ON.
+ *    4. Build, flash, and watch the board and the terminal.
+ *    5. Do the "TRY IT" exercise, then move on to the next STEP.
+ *
+ *  Do the steps IN ORDER, 1, 2, 3 and so on. Each step is one
+ *  self-contained block, so after you turn on a step the program always
+ *  builds and runs with no errors. Each box has a "NEEDS" line telling you
+ *  which earlier steps must already be on.
+ *
+ *  THE ONE RULE
+ *
+ *    Text inside  / * ... * /  boxes is explanation. Leave it alone.
+ *    Lines starting with  //  are code that is switched off. Those are the
+ *    only lines you ever turn on.
+ *
+ *  NOTE ON THE BUTTON NAME
+ *    The code calls the button "SW1" (pin PTC3). On some boards the
+ *    silkscreen says SW2 for that same button. Press whichever physical
+ *    button works. The name printed on the board does not matter.
+ * ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+ *  INCLUDES (already on, nothing to do)
+ *
+ *  An "include" pulls in a header file so this program knows the names of
+ *  the functions it is about to use. Think of it as importing a library.
+ *  fsl_port.h controls pin settings (like interrupts), fsl_gpio.h reads and
+ *  writes pins, and board.h knows which pins the LED and button are on.
+ * -------------------------------------------------------------------------- */
+
 #include "fsl_debug_console.h"
 #include "fsl_port.h"
 #include "fsl_gpio.h"
@@ -60,113 +93,272 @@
 #include "board.h"
 #include "pin_mux.h"
 #include "clock_config.h"
-/*******************************************************************************
- * Definitions
- ******************************************************************************/
-#define BOARD_LED_GPIO BOARD_LED_RED_GPIO
-#define BOARD_LED_GPIO_PIN BOARD_LED_RED_GPIO_PIN
 
-/* Aliases the board's SW1 pin/port/IRQ names to generic BOARD_SW_* names
-   used below, so pointing this file at a different switch is just a
-   six-line edit instead of a find-and-replace through the whole file. */
-#define BOARD_SW_GPIO BOARD_SW1_GPIO
-#define BOARD_SW_PORT BOARD_SW1_PORT
-#define BOARD_SW_GPIO_PIN BOARD_SW1_GPIO_PIN
-#define BOARD_SW_IRQ BOARD_SW1_IRQ
-#define BOARD_SW_IRQ_HANDLER BOARD_SW1_IRQ_HANDLER
-#define BOARD_SW_NAME BOARD_SW1_NAME
 
-/*******************************************************************************
- * Prototypes
- ******************************************************************************/
 
-/*******************************************************************************
- * Variables
- ******************************************************************************/
-/* Whether the SW button is pressed */
-/* The flag the interrupt handler sets and main() clears. `volatile` because
-   it's written from an interrupt and read from main()'s normal code; without
-   it the compiler could cache a stale copy in a register and miss real
-   presses. This is the standard way to hand information from a short
-   interrupt handler back to the main program. */
-volatile bool g_ButtonPress = false;
 
-/*******************************************************************************
- * Code
- ******************************************************************************/
-/*!
- * @brief Interrupt service fuction of switch.
+
+/* ==========================================================================
+ *  STEP 1: THE PIECES THAT LIVE ABOVE main()
  *
- * This function toggles the LED
- */
-/* Runs the instant the button's falling-edge interrupt fires. Clears the
-   pin's interrupt flag (required, or the hardware re-fires it immediately),
-   then sets g_ButtonPress, nothing else. Interrupt handlers should do as
-   little as possible and return fast; toggling the LED directly here would
-   work for this simple demo, but setting a flag and letting main() react
-   is the pattern that scales to real responses longer than one line. */
-void BOARD_SW_IRQ_HANDLER(void)
-{
-    /* Clear external interrupt flag. */
-    GPIO_ClearPinsInterruptFlags(BOARD_SW_GPIO, 1U << BOARD_SW_GPIO_PIN);
-    /* Change state of button. */
-    g_ButtonPress = true;
-}
+ *  CONCEPT
+ *    An interrupt is the chip tapping your shoulder: "something happened,
+ *    stop what you are doing and handle it". The function that handles it
+ *    is called an interrupt service routine, or ISR. An ISR must be a
+ *    function by itself, so it has to sit outside main(). That is why this
+ *    step is up here and not inside main().
+ *
+ *    This block holds three things:
+ *
+ *    (a) Nicknames. The board has the button wired as SW1. These #define
+ *        lines give generic names (BOARD_SW_...) so that pointing the
+ *        program at a different button later is a small edit in one place.
+ *        The LED nickname does the same for the red LED.
+ *
+ *    (b) A flag called g_ButtonPress. The ISR sets it to true when the
+ *        button is pressed, and main() reads it. "volatile" is required
+ *        because the value changes behind main()'s back. Without it, the
+ *        compiler may assume it never changes and miss every press.
+ *
+ *    (c) The ISR itself. It does the smallest possible job: clear the
+ *        hardware's "I fired" marker, and set the flag. If you forget to
+ *        clear the marker, the chip thinks the button is still pending and
+ *        calls the ISR again and again, forever. Keeping ISRs tiny and
+ *        letting main() do the real work is a pattern you will reuse in
+ *        every project from here on.
+ *
+ *  NEEDS: nothing. Safe to flash right away. It does nothing visible yet
+ *  because nothing starts the interrupt (that is STEP 5).
+ *
+ *  TRY IT
+ *    Turn the whole block on and build. If it builds with no errors, you
+ *    are ready.
+ *
+ *  NEXT: go to STEP 2 inside main().
+ * ========================================================================== */
 
-/*!
- * @brief Main function
- */
+//#define BOARD_LED_GPIO BOARD_LED_RED_GPIO
+//#define BOARD_LED_GPIO_PIN BOARD_LED_RED_GPIO_PIN
+//
+//#define BOARD_SW_GPIO BOARD_SW1_GPIO
+//#define BOARD_SW_PORT BOARD_SW1_PORT
+//#define BOARD_SW_GPIO_PIN BOARD_SW1_GPIO_PIN
+//#define BOARD_SW_IRQ BOARD_SW1_IRQ
+//#define BOARD_SW_IRQ_HANDLER BOARD_SW1_IRQ_HANDLER
+//#define BOARD_SW_NAME BOARD_SW1_NAME
+//
+//volatile bool g_ButtonPress = false;
+//
+//void BOARD_SW_IRQ_HANDLER(void)
+//{
+//    GPIO_ClearPinsInterruptFlags(BOARD_SW_GPIO, 1U << BOARD_SW_GPIO_PIN);
+//
+//    g_ButtonPress = true;
+//}
+
+
+
+
+
 int main(void)
 {
-    /* Define the init structure for the input switch pin */
-    /* A button pin needs to be an input (reading a voltage the switch
-       controls), the opposite direction from the LED pin below. */
-    gpio_pin_config_t sw_config = {
-        kGPIO_DigitalInput, 0,
-    };
 
-    /* Define the init structure for the output LED pin */
-    gpio_pin_config_t led_config = {
-        kGPIO_DigitalOutput, 0,
-    };
+    /* ======================================================================
+     *  STEP 2: WAKE UP THE BOARD
+     *
+     *  CONCEPT
+     *    When a chip powers on, it is in a plain default state. Three
+     *    setup calls must run once, in this order, before anything else:
+     *
+     *      BOARD_InitPins()          decide what each pin does
+     *      BOARD_BootClockRUN()      start the clock (the chip's heartbeat)
+     *      BOARD_InitDebugConsole()  open the serial line to your computer
+     *
+     *  NEEDS: nothing. Safe to flash right away.
+     *
+     *  TRY IT
+     *    Turn these on, build, flash. Nothing visible happens, and that is
+     *    correct. You only proved the toolchain works.
+     *
+     *  NEXT: go to STEP 3.
+     * ==================================================================== */
 
-    BOARD_InitPins();
-    BOARD_BootClockRUN();
-    BOARD_InitDebugConsole();
+    //BOARD_InitPins();
+    //BOARD_BootClockRUN();
+    //BOARD_InitDebugConsole();
 
-    /* Print a note to terminal. */
-    PRINTF("\r\n GPIO Driver example\r\n");
-    PRINTF("\r\n Press %s to turn on/off a LED \r\n", BOARD_SW_NAME);
 
-    /* Init input switch GPIO. */
-    /* Arms the interrupt hardware, then configures the pin. Two separate
-       enables are required: PORT_SetPinInterruptConfig tells the port
-       hardware to watch for a falling edge; EnableIRQ turns that interrupt
-       on at the NVIC level, the "master switch" every peripheral interrupt
-       also needs. Forgetting EnableIRQ is a common way for an interrupt to
-       silently never fire even though the port side looks correct. */
-    PORT_SetPinInterruptConfig(BOARD_SW_PORT, BOARD_SW_GPIO_PIN, kPORT_InterruptFallingEdge);
-    EnableIRQ(BOARD_SW_IRQ);
-    GPIO_PinInit(BOARD_SW_GPIO, BOARD_SW_GPIO_PIN, &sw_config);
 
-    /* Init output LED GPIO. */
-    GPIO_PinInit(BOARD_LED_GPIO, BOARD_LED_GPIO_PIN, &led_config);
 
-    /* Waits for the ISR to set g_ButtonPress, then reacts: print, toggle,
-       clear the flag. This is "polling a flag", not "polling the pin": the
-       CPU is free to do anything else between presses, since the interrupt
-       is what actually detects the press, this loop only reacts after the
-       fact. Compare to the polling baseline in the manual's Section 6,
-       which instead reads the pin's live voltage every iteration. */
-    while (1)
-    {
-        if (g_ButtonPress)
-        {
-            PRINTF(" %s is pressed \r\n", BOARD_SW_NAME);
-            /* Toggle LED. */
-            GPIO_TogglePinsOutput(BOARD_LED_GPIO, 1U << BOARD_LED_GPIO_PIN);
-            /* Reset state of button. */
-            g_ButtonPress = false;
-        }
-    }
+
+    /* ======================================================================
+     *  STEP 3: PRINT A MESSAGE
+     *
+     *  CONCEPT
+     *    PRINTF() sends text down the USB cable to the terminal on your
+     *    computer. The %s inside the quotes is a placeholder: "put a piece
+     *    of text here". The text that fills it follows after the comma. Here
+     *    it fills in the button's name.
+     *
+     *  NEEDS: STEP 2 already on. Safe to flash right away.
+     *
+     *  TRY IT
+     *    Turn these on, flash, and open the terminal. You should see the
+     *    two messages. Change the second message to say something in your
+     *    own words.
+     *
+     *  NEXT: go to STEP 4.
+     * ==================================================================== */
+
+    //PRINTF("\r\n GPIO Driver example\r\n");
+    //PRINTF("\r\n Press %s to turn on/off a LED \r\n", BOARD_SW_NAME);
+
+
+
+
+
+    /* ======================================================================
+     *  STEP 4: SET UP THE BUTTON AND THE LED PINS
+     *
+     *  CONCEPT
+     *    Every GPIO pin is either an INPUT (it reads a voltage, like a
+     *    button) or an OUTPUT (it drives a voltage, like an LED). We describe
+     *    each pin in a small structure, then GPIO_PinInit() writes that
+     *    description into the chip's hardware. Until that call, the
+     *    structure is just a note sitting in memory.
+     *
+     *    The trailing 0 is the starting level. For the LED, 0 volts means ON
+     *    on this board.
+     *
+     *  NEEDS: STEPS 1, 2 and 3 already on. Safe to flash right away.
+     *
+     *  TRY IT
+     *    Turn this on, flash. The red LED should light up and stay solid.
+     *    Pressing the button does nothing yet, because the interrupt is not
+     *    turned on (STEP 5). Change the LED's 0 to a 1 and flash again.
+     *    What happens?
+     *
+     *  NEXT: go to STEP 5.
+     * ==================================================================== */
+
+    //gpio_pin_config_t sw_config = {
+    //    kGPIO_DigitalInput, 0,
+    //};
+    //
+    //gpio_pin_config_t led_config = {
+    //    kGPIO_DigitalOutput, 0,
+    //};
+    //
+    //GPIO_PinInit(BOARD_SW_GPIO, BOARD_SW_GPIO_PIN, &sw_config);
+    //GPIO_PinInit(BOARD_LED_GPIO, BOARD_LED_GPIO_PIN, &led_config);
+
+
+
+
+
+    /* ======================================================================
+     *  STEP 5: TURN ON THE INTERRUPT
+     *
+     *  CONCEPT
+     *    Two switches must both be flipped, or the interrupt never fires:
+     *
+     *      PORT_SetPinInterruptConfig   tells the pin's port hardware WHEN
+     *                                   to raise an interrupt. Here:
+     *                                   "falling edge", the instant the
+     *                                   voltage drops from high to low.
+     *                                   This button reads high normally and
+     *                                   low while pressed, so a falling edge
+     *                                   happens at the moment of the press.
+     *
+     *      EnableIRQ                    the chip-wide master switch for that
+     *                                   interrupt. Forgetting this one is a
+     *                                   classic mistake: the pin side looks
+     *                                   perfect, and the interrupt silently
+     *                                   never arrives.
+     *
+     *  NEEDS: STEPS 1 to 4 already on. Safe to flash right away.
+     *
+     *  TRY IT
+     *    Turn this on, flash, and press the button. Nothing visible happens
+     *    yet. But inside the chip, the ISR from STEP 1 now fires on every
+     *    press and sets the flag. Nothing reads that flag yet (STEP 6).
+     *
+     *  NEXT: go to STEP 6.
+     * ==================================================================== */
+
+    //PORT_SetPinInterruptConfig(BOARD_SW_PORT, BOARD_SW_GPIO_PIN, kPORT_InterruptFallingEdge);
+    //EnableIRQ(BOARD_SW_IRQ);
+
+
+
+
+
+    /* ======================================================================
+     *  STEP 6: REACT TO THE FLAG
+     *
+     *  CONCEPT
+     *    The ISR only raises the flag. This loop is where the real work
+     *    happens: when the flag is up, print a message, toggle the LED,
+     *    then lower the flag so the next press can be noticed.
+     *
+     *    Notice the CPU is not staring at the button. The interrupt
+     *    watches the button for us, and this loop only reacts after the
+     *    fact. Between presses the CPU is free to do anything else. That is
+     *    the whole benefit of interrupts over "polling" (checking the pin
+     *    over and over).
+     *
+     *  NEEDS: STEPS 1 to 5 already on. Safe to flash right away.
+     *
+     *  TRY IT
+     *    Turn this on, flash, press the button. The LED should toggle on
+     *    every press and the terminal should print a message.
+     *
+     *  NEXT: go to the exercises below.
+     * ==================================================================== */
+
+    //while (1)
+    //{
+    //    if (g_ButtonPress)
+    //    {
+    //        PRINTF(" %s is pressed \r\n", BOARD_SW_NAME);
+    //
+    //        GPIO_TogglePinsOutput(BOARD_LED_GPIO, 1U << BOARD_LED_GPIO_PIN);
+    //
+    //        g_ButtonPress = false;
+    //    }
+    //}
+
 }
+
+
+
+
+
+/* ==========================================================================
+ *  EXERCISES
+ *
+ *  1. Change the edge. In STEP 5, change kPORT_InterruptFallingEdge to
+ *     kPORT_InterruptRisingEdge. Now the LED toggles when you RELEASE the
+ *     button, not when you press it. Why? (Hint: rising edge is the
+ *     voltage going low to high.)
+ *
+ *  2. Try kPORT_InterruptEitherEdge. You would expect two toggles per
+ *     press-and-release. Do you always get that, or does the LED sometimes
+ *     do something odd? Metal contacts bounce for a few thousandths of a
+ *     second, and the chip is fast enough to see every bounce. This is why
+ *     real products "debounce" their buttons.
+ *
+ *  3. Change the LED color. In STEP 1, change RED to GREEN or BLUE in the
+ *     two LED #define lines. Careful: the copied pin_mux.c only sets up the
+ *     RED LED's pin for this demo, so nothing will happen until you also
+ *     add the matching pin setup line for the new color. This is the same
+ *     trap as in P0's color exercise (see the P0 manual, Section 8.2).
+ *
+ *  4. Break it on purpose. In the ISR in STEP 1, comment out the
+ *     GPIO_ClearPinsInterruptFlags line. Press the button once. What
+ *     happens to the board? Why? (Hint: the chip keeps re-entering the ISR
+ *     and main() never gets to run.) Put the line back afterward.
+ *
+ *  WHERE TO GO NEXT
+ *    Demo 2: use the PWM hardware to dim the LED smoothly, not just on/off.
+ * ========================================================================== */

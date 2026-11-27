@@ -12,15 +12,19 @@ Everything from P0 (MCUXpresso IDE, the SDK, a serial terminal) still applies. O
 
 ## 6. Reading the Button Two Ways: Polling vs. Interrupt
 
-**Before touching any code, create one new project for the entire P1 dashboard**, via MCUXpresso's SDK wizard, the exact same steps as P0's manual, Section 9: device `MKL26Z128VLH4`, board files = **Default board files**, project type = **C Project**, SDK Debug Console = **UART**. Name it something like `p1_sensor_dashboard`.
+**How P1 works now: the code files guide you.** Every demo in `demo_code/` (01 to 07) is a **step-by-step file**: the code is already in it but switched off, and you turn on one step at a time, run it, and do a small exercise. All the explanation is written inside the file, so you do not need this manual open to follow it. Do the demos in order, 01 to 07. This section and the ones after it are background and a fallback if you get stuck.
 
-You'll keep building onto this same project all the way through Section 14; every `demo_code/` folder from here on is something to **read and copy logic from**, never a separate thing you build on its own.
+**Setup, once:** create one new project for all of P1 via MCUXpresso's SDK wizard, the exact same steps as P0's manual, Section 9: device `MKL26Z128VLH4`, board files = **Default board files**, project type = **C Project**, SDK Debug Console = **UART**. Name it something like `p1_sensor_dashboard`. A wizard-created project uses MCUXpresso's normal managed build (the same one the P0 UART project used), with no CMake and no relative-path setup to fight with.
 
-This matters for a concrete reason: a wizard-created project uses MCUXpresso's normal managed build (the same one the P0 UART project used), with no CMake, no `armgcc` folder, and no relative-path setup to fight with. The older `driver_examples/`-style reference folders (which is what everything in `demo_code/` is) ship with a different, older build style meant for command-line/multi-IDE use, not smooth GUI onboarding; copying that style in is exactly the friction P0's manual warns about avoiding.
+**For each demo, the same three moves:**
 
-The one setup step that's still manual either way is the PEmicro Debug Configuration (P0 manual, Section 8.1); set that up once for this project and reuse it for the rest of P1.
+1. Open the demo's main file in `demo_code/`, copy everything, and paste it over your project's main source file.
+2. Replace your project's `pin_mux.c` with the `pin_mux.c` from that same demo folder. Each demo needs different pins set up (the LED, the button, the I2C pins and so on), and the wizard's own `pin_mux.c` only sets up the serial pins. **If you forget this step the program builds and runs with no error, but the LED, button or sensor does nothing.**
+3. Follow the steps inside the file.
 
-`demo_code/01_button_polling_vs_interrupt/` is the SDK's own interrupt-driven button example (unmodified, already verified working). It configures SW1 (PTC3) to fire an interrupt on a falling edge (remember from Section 4: the button is pulled up internally, so idle = high, pressed = low, which is why "falling edge" means "pressed") and toggles the red LED from the ISR's flag. Read it for the exact register calls; you don't need to build that folder itself.
+The one setup step that's still manual is the PEmicro Debug Configuration (P0 manual, Section 8.1); set that up once for this project and reuse it for the rest of P1.
+
+`demo_code/01_button_polling_vs_interrupt/` is the step-by-step version of an interrupt-driven button read (based on the SDK's own example). It configures SW1 (PTC3) to fire an interrupt on a falling edge (remember from Section 4: the button is pulled up internally, so idle = high, pressed = low, which is why "falling edge" means "pressed") and toggles the red LED from the ISR's flag. Work through the file; the exercise below is the extra part that compares it to a polling version.
 
 **Do the actual exercise twice**, once each way, so the comparison is real and not hypothetical, both inside your one dashboard project:
 
@@ -43,11 +47,11 @@ This is a real, commonly-taught pattern, not something invented for this manual;
 
 ## 8. RGB LED Brightness via Hardware PWM
 
-Copy the setup from `demo_code/02_rgb_pwm_reference/` (SDK's `tpm_simple_pwm` example, unmodified and verified working): it drives the green LED (PTE31, TPM0 channel 4, per Section 4) with a 24 kHz center-aligned PWM signal, and lets you type a digit 0 to 9 over the serial terminal to change the duty cycle in 10% steps.
+Copy the setup from `demo_code/02_rgb_pwm_reference/` (a step-by-step version of the SDK's `tpm_simple_pwm` example): it drives the green LED (PTE31, TPM0 channel 4, per Section 4) with a 24 kHz center-aligned PWM signal, and lets you type a digit 0 to 9 over the serial terminal to change the duty cycle in 10% steps.
 
 **The concept you must be able to explain, not just the API call:** the timer's period register (called `MOD` internally) and channel value register (`CnV`) are what the SDK's `TPM_SetupPwm()` function computes for you. Conceptually:
 
-- **Period register (MOD)** determines the PWM frequency: `MOD = timer clock frequency / desired PWM frequency`. This example asks for 24000 Hz.
+- **Period register (MOD)** determines the PWM frequency. In this center-aligned example the timer counts up and back down each cycle, so the SDK uses `MOD = timer clock frequency / (2 * desired PWM frequency)`. Use the clock after prescaling and a target frequency of 24,000 Hz.
 - **Duty cycle register (CnV)** determines what fraction of each period the output is asserted: `CnV = MOD * (duty cycle percent / 100)`.
 
 You don't calculate these by hand in code (the SDK does it), but you should be able to compute what MOD and CnV would be for a given clock and target frequency if asked, since that's the actual concept being taught here, not the function call.
@@ -58,7 +62,7 @@ You don't calculate these by hand in code (the SDK does it), but you should be a
 
 Copy the setup from `demo_code/03_adc_reference/` (SDK's `adc16_polling` example): it reads ADC0_SE23 on PTE30, a general-purpose analog header pin, at the default 12-bit single-ended resolution (0 to 4095 counts) against the board's ~3.3V analog reference.
 
-**The conversion you need to understand and reproduce:** `voltage = (raw_counts / 4095.0) * 3.3`. Print both the raw count and the computed voltage over UART at 1 Hz for this session's deliverable (Section 6's PIT-based tick, covered fully in Section 14, is the clean way to get a steady 1 Hz cadence; a simple software delay loop is acceptable for this specific milestone if you haven't reached Section 14 yet, but replace it before Session 2).
+The standalone demo takes one reading when you press a key in the terminal. The voltage is `(raw_counts / 4095.0) * 3.3`. For the session deliverable, print both the raw count and the computed voltage over UART at 1 Hz. Use the PIT tick in Section 14 for that steady rate. A simple software delay loop also works for the first milestone.
 
 **Print it as integer millivolts, not a `%f` float.** Your wizard project (Section 6) links Redlib, the same library behind P0's `%08lX` gotcha, and Redlib's default build here also has `PRINTF_FLOAT_ENABLE` off, meaning `%f`/`%.2f` don't print anything at all, not even garbage, just nothing where the number should be. Do the voltage math in integer millivolts instead of floating-point volts, and use plain `%u` (no `l`, same reason as the `%08X` fix in P0):
 ```c

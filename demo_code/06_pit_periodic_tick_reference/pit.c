@@ -28,136 +28,321 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * P1 Session 2 reference: PIT channel 0 firing a 1 Hz interrupt, toggling
- * the red LED and printing once per tick. This is the same periodic-tick
- * mechanism Section 14 of the manual uses to drive the full dashboard's
- * 5 Hz print rate, just with a plain LED-and-print body instead of
- * reading all four sensors, so the timer setup itself is easier to see.
- *
- * Reference only. Get your own PIT setup working first; open this only if
- * stuck on the timer configuration specifically.
- */
 
-/* Toggles the red LED and prints once per second, forever, driven by a
-   hardware timer interrupt instead of a busy-wait delay. P0's LED demo
-   paced itself with delay(), which wastes CPU cycles and drifts if the
-   clock speed ever changes; the PIT counts real time accurately in the
-   background and only interrupts the CPU when needed, the same
-   flag-in-handler, react-in-main() pattern as the button interrupt demo.
-   This is also the exact mechanism the full dashboard (Session 7) uses to
-   pace its 5 Hz print rate. */
+/* ==========================================================================
+ *  P1 DEMO 6: A PRECISE TIMER TICK (PIT), A STEP-BY-STEP LADDER
+ * ==========================================================================
+ *
+ *  Goal: the red LED toggles and the terminal prints a message exactly
+ *  once per second, driven by a hardware timer, not a wasteful delay loop.
+ *
+ *  This file starts almost empty on purpose. The code for each step is
+ *  already here, but turned OFF (commented out). You switch it on one step
+ *  at a time, run it on the board, and see what changed.
+ *
+ *  BEFORE YOU START: SET UP YOUR PROJECT (3 quick steps)
+ *
+ *    1. Create a new project with the SDK wizard. The P0 manual, Section 9,
+ *       Step 1, shows exactly how.
+ *    2. Paste this whole file over the contents of your project's main
+ *       source file.
+ *    3. Replace your project's pin_mux.c with the pin_mux.c that sits next
+ *       to this file. It tells the chip which pins are the LED, the button
+ *       and so on. Forget it and the program still builds and runs, but
+ *       the LED or button does nothing, with no error message at all.
+ *
+ *  HOW TO USE THIS FILE
+ *
+ *    1. Read the STEP box. It explains the idea in plain words.
+ *    2. Select ALL the grey "//" code lines under it (the whole block).
+ *    3. Press  Cmd + /  (Mac)  or  Ctrl + /  (Windows)  to turn them ON.
+ *    4. Build, flash, and watch the board and the terminal.
+ *    5. Do the "TRY IT" exercise, then move on to the next STEP.
+ *
+ *  Do the steps IN ORDER. Each step is one self-contained block, so after
+ *  you turn on a step the program always builds and runs with no errors.
+ *  Each box has a "NEEDS" line telling you which earlier steps must be on.
+ *
+ *  THE ONE RULE
+ *
+ *    Text inside  / * ... * /  boxes is explanation. Leave it alone.
+ *    Lines starting with  //  are code that is switched off. Those are the
+ *    only lines you ever turn on.
+ *
+ *  WHY NOT JUST USE A DELAY LOOP?
+ *    In P0 you slowed the blink with a loop that counts to a big number.
+ *    That wastes the CPU and the timing drifts if the clock speed ever
+ *    changes. The PIT (Periodic Interrupt Timer) counts real time in
+ *    hardware and only interrupts the CPU when the time is up. This is the
+ *    same timer the full dashboard (Demo 7) uses to pace its output.
+ * ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+ *  INCLUDES (already on, nothing to do)
+ *
+ *  fsl_pit.h is the driver for the PIT timer.
+ * -------------------------------------------------------------------------- */
+
 #include "fsl_debug_console.h"
 #include "board.h"
 #include "fsl_pit.h"
 
 #include "pin_mux.h"
 #include "clock_config.h"
-/*******************************************************************************
- * Definitions
- ******************************************************************************/
-#define PIT_LED_HANDLER PIT_IRQHandler
-#define PIT_IRQ_ID PIT_IRQn
-/* Get source clock for PIT driver */
-/* PIT_SetTimerPeriod below needs this real clock frequency to translate a
-   time in microseconds into the right number of ticks to count down. */
-#define PIT_SOURCE_CLOCK CLOCK_GetFreq(kCLOCK_BusClk)
-#define LED_INIT() LED_RED_INIT(LOGIC_LED_ON)
-#define LED_TOGGLE() LED_RED_TOGGLE()
 
-/*******************************************************************************
- * Prototypes
- ******************************************************************************/
 
-/*******************************************************************************
- * Variables
- ******************************************************************************/
 
-/* Set by the interrupt handler, cleared by main() after reacting. volatile
-   for the same reason as the button demo's g_ButtonPress: written from an
-   interrupt, read from normal code, so the compiler must not cache a stale
-   copy. */
-volatile bool pitIsrFlag = false;
 
-/*******************************************************************************
- * Code
- ******************************************************************************/
-/* Runs automatically once per second, when PIT channel 0 reaches zero.
-   Clears the channel's timer flag (required, or the interrupt looks still
-   pending) and sets pitIsrFlag, nothing else, same minimal-handler
-   discipline as every other interrupt in this series. */
-void PIT_LED_HANDLER(void)
-{
-    /* Clear interrupt flag.*/
-    PIT_ClearStatusFlags(PIT, kPIT_Chnl_0, kPIT_TimerFlag);
-    pitIsrFlag = true;
-}
 
-/*!
- * @brief Main function
- */
+/* ==========================================================================
+ *  STEP 1: THE PIECES THAT LIVE ABOVE main()
+ *
+ *  CONCEPT
+ *    The interrupt handler is a function by itself, so it has to sit
+ *    outside main(). That is why this step is up here.
+ *
+ *    This block holds:
+ *
+ *    (a) Nicknames.
+ *        PIT_LED_HANDLER   the official name the chip looks for when the
+ *                          PIT interrupt fires (PIT_IRQHandler)
+ *        PIT_IRQ_ID        the PIT's interrupt number
+ *        PIT_SOURCE_CLOCK  the clock speed feeding the timer. We need it
+ *                          to convert "one second" into a count of clock
+ *                          ticks.
+ *        LED_INIT/TOGGLE   short names for the red LED actions
+ *
+ *    (b) A flag called pitIsrFlag. The handler raises it each second.
+ *        main() reacts and lowers it. "volatile" is required because it
+ *        changes behind main()'s back, so the compiler must not assume it
+ *        stays the same.
+ *
+ *    (c) The handler. It does the smallest possible job: clear the timer's
+ *        "I fired" marker (or the chip thinks the interrupt is still
+ *        pending), and raise the flag. Same tiny-handler habit as the
+ *        button demo.
+ *
+ *  NEEDS: nothing. Safe to flash right away. Nothing starts the timer yet.
+ *
+ *  TRY IT
+ *    Turn the whole block on and build. If it builds, you are ready.
+ *
+ *  NEXT: go to STEP 2 inside main().
+ * ========================================================================== */
+
+//#define PIT_LED_HANDLER PIT_IRQHandler
+//#define PIT_IRQ_ID PIT_IRQn
+//#define PIT_SOURCE_CLOCK CLOCK_GetFreq(kCLOCK_BusClk)
+//
+//#define LED_INIT() LED_RED_INIT(LOGIC_LED_ON)
+//#define LED_TOGGLE() LED_RED_TOGGLE()
+//
+//volatile bool pitIsrFlag = false;
+//
+//void PIT_LED_HANDLER(void)
+//{
+//    PIT_ClearStatusFlags(PIT, kPIT_Chnl_0, kPIT_TimerFlag);
+//
+//    pitIsrFlag = true;
+//}
+
+
+
+
+
 int main(void)
 {
-    /* Structure of initialize PIT */
-    pit_config_t pitConfig;
 
-    /* Initialize and enable LED */
-    LED_INIT();
+    /* ======================================================================
+     *  STEP 2: WAKE UP THE BOARD AND THE LED
+     *
+     *  CONCEPT
+     *    Three setup calls run once, in this order, before anything else:
+     *
+     *      BOARD_InitPins()          decide what each pin does
+     *      BOARD_BootClockRUN()      start the clock (the chip's heartbeat)
+     *      BOARD_InitDebugConsole()  open the serial line to your computer
+     *
+     *    Then LED_INIT() prepares the red LED. It starts ON.
+     *
+     *  NEEDS: STEP 1 already on. Safe to flash right away.
+     *
+     *  TRY IT
+     *    Turn these on, flash. The red LED should light up and stay on.
+     *
+     *  NEXT: go to STEP 3.
+     * ==================================================================== */
 
-    /* Board pin, clock, debug console init */
-    BOARD_InitPins();
-    BOARD_BootClockRUN();
-    BOARD_InitDebugConsole();
+    //BOARD_InitPins();
+    //BOARD_BootClockRUN();
+    //BOARD_InitDebugConsole();
+    //
+    //LED_INIT();
 
-    /*
-     * pitConfig.enableRunInDebug = false;
-     */
-    /* Fills pitConfig with defaults, then applies them to the real PIT
-       peripheral; same fill-struct-then-apply pattern TPM, ADC, and GPIO
-       all follow too. */
-    PIT_GetDefaultConfig(&pitConfig);
 
-    /* Init pit module */
-    PIT_Init(PIT, &pitConfig);
 
-    /* Set timer period for channel 0 */
-    /* USEC_TO_COUNT converts a human time (1,000,000 us = 1 second) into
-       the equivalent PIT_SOURCE_CLOCK tick count, since the hardware only
-       understands raw ticks. Using the macro means this reads as "one
-       second" instead of a magic number that would silently be wrong if
-       the bus clock ever changed. */
-    PIT_SetTimerPeriod(PIT, kPIT_Chnl_0, USEC_TO_COUNT(1000000U, PIT_SOURCE_CLOCK));
 
-    /* Enable timer interrupts for channel 0 */
-    PIT_EnableInterrupts(PIT, kPIT_Chnl_0, kPIT_TimerInterruptEnable);
 
-    /* Enable at the NVIC */
-    /* Same two-level enable as the button demo: the peripheral's own
-       interrupt-enable bit (above) and the NVIC's enable (here) are both
-       required before the interrupt actually reaches the CPU. */
-    EnableIRQ(PIT_IRQ_ID);
+    /* ======================================================================
+     *  STEP 3: SET UP THE TIMER
+     *
+     *  CONCEPT
+     *    Same "fill a structure with sensible defaults, then apply it"
+     *    pattern as every peripheral so far:
+     *
+     *      PIT_GetDefaultConfig   standard settings
+     *      PIT_Init               apply them to the real hardware
+     *
+     *    The PIT has several independent channels (separate stopwatches).
+     *    We will use channel 0.
+     *
+     *  NEEDS: STEPS 1 and 2 already on. Safe to flash right away.
+     *
+     *  TRY IT
+     *    Turn this on and flash. The timer exists but is not counting yet,
+     *    so nothing changes.
+     *
+     *  NEXT: go to STEP 4.
+     * ==================================================================== */
 
-    /* Start channel 0 */
-    PRINTF("\r\nStarting channel No.0 ...");
-    /* Configuring the period doesn't start the countdown; this call does,
-       same as TPM_StartTimer in the PWM demo. Before this line the
-       interrupt handler above could never fire. */
-    PIT_StartTimer(PIT, kPIT_Chnl_0);
+    //pit_config_t pitConfig;
+    //
+    //PIT_GetDefaultConfig(&pitConfig);
+    //PIT_Init(PIT, &pitConfig);
 
-    /* Waits for the once-per-second flag and reacts: print, toggle, clear.
-       Identical shape to the button-interrupt demo's main loop. Between
-       ticks this spins doing nothing since there's no other work for this
-       demo; in a real program this is exactly where other work would run,
-       since the PIT interrupt fires independently of whatever the loop is
-       doing. */
-    while (true)
-    {
-        /* Check whether occur interupt and toggle LED */
-        if (true == pitIsrFlag)
-        {
-            PRINTF("\r\n Channel No.0 interrupt is occured !");
-            LED_TOGGLE();
-            pitIsrFlag = false;
-        }
-    }
+
+
+
+
+    /* ======================================================================
+     *  STEP 4: SET THE TICK TIME AND ALLOW THE INTERRUPT
+     *
+     *  CONCEPT
+     *    Three jobs:
+     *
+     *    1. PIT_SetTimerPeriod: how long should channel 0 count before it
+     *       rings? The hardware only understands raw clock ticks, so
+     *       USEC_TO_COUNT converts microseconds into ticks for us.
+     *       1,000,000 microseconds is one second. Using this macro means
+     *       the line says "one second" instead of an unexplained huge
+     *       number, and it stays correct if the clock speed changes.
+     *
+     *    2. PIT_EnableInterrupts: tell the PIT to raise an interrupt when
+     *       it rings.
+     *
+     *    3. EnableIRQ: the chip-wide master switch for that interrupt.
+     *       BOTH switches (2 and 3) must be on, same as the button demo.
+     *       Forgetting one makes the interrupt silently never arrive.
+     *
+     *  NEEDS: STEPS 1 to 3 already on. Safe to flash right away.
+     *
+     *  TRY IT
+     *    Turn this on and flash. Still nothing visible. The timer is set
+     *    up, but not started.
+     *
+     *  NEXT: go to STEP 5.
+     * ==================================================================== */
+
+    //PIT_SetTimerPeriod(PIT, kPIT_Chnl_0, USEC_TO_COUNT(1000000U, PIT_SOURCE_CLOCK));
+    //
+    //PIT_EnableInterrupts(PIT, kPIT_Chnl_0, kPIT_TimerInterruptEnable);
+    //
+    //EnableIRQ(PIT_IRQ_ID);
+
+
+
+
+
+    /* ======================================================================
+     *  STEP 5: START THE TIMER
+     *
+     *  CONCEPT
+     *    Setting the period does NOT start the countdown. PIT_StartTimer
+     *    does. Until this call the handler can never fire. (TPM_StartTimer
+     *    in the PWM demo worked the same way.)
+     *
+     *    From now on, once per second the timer rings, the handler runs
+     *    and raises the flag. Nothing reads the flag yet.
+     *
+     *  NEEDS: STEPS 1 to 4 already on. Safe to flash right away.
+     *
+     *  TRY IT
+     *    Turn this on and flash. Open the terminal and you will see the
+     *    "Starting" message. The LED still does not blink, because nobody
+     *    reads the flag yet. That is STEP 6.
+     *
+     *  NEXT: go to STEP 6.
+     * ==================================================================== */
+
+    //PRINTF("\r\nStarting channel No.0 ...");
+    //
+    //PIT_StartTimer(PIT, kPIT_Chnl_0);
+
+
+
+
+
+    /* ======================================================================
+     *  STEP 6: REACT TO EACH TICK
+     *
+     *  CONCEPT
+     *    The same shape as the button demo's main loop. When the flag is
+     *    up, print, toggle the LED, and lower the flag.
+     *
+     *    Between ticks this loop just spins, because there is no other work
+     *    in this demo. In a real program, that is exactly where your other
+     *    work would run. The PIT interrupts it independently, once a
+     *    second, no matter what the loop is busy doing.
+     *
+     *  NEEDS: STEPS 1 to 5 already on. Safe to flash right away.
+     *
+     *  TRY IT
+     *    Turn this on and flash. The LED should now toggle once per second
+     *    and the terminal should print a line each time. Count 10 ticks
+     *    against a clock or your phone. Is it exactly 10 seconds?
+     *
+     *  NEXT: go to the exercises below.
+     * ==================================================================== */
+
+    //while (true)
+    //{
+    //    if (true == pitIsrFlag)
+    //    {
+    //        PRINTF("\r\n Channel No.0 interrupt is occured !");
+    //
+    //        LED_TOGGLE();
+    //
+    //        pitIsrFlag = false;
+    //    }
+    //}
+
 }
+
+
+
+
+
+/* ==========================================================================
+ *  EXERCISES
+ *
+ *  1. Change the tick rate. In STEP 4, change 1000000U to 250000U. The LED
+ *     now toggles four times a second. Try 100000U. At what rate does the
+ *     LED look like a steady glow? (Remember the P0 flicker exercise.)
+ *
+ *  2. Count the ticks. Add a counter variable that goes up by one in the
+ *     loop in STEP 6, and print its value. Does it ever skip a number?
+ *
+ *  3. Prove the CPU is free. Between ticks, the loop is idle. Add a counter
+ *     that goes up by one on EVERY pass of the  while (true)  loop (outside
+ *     the  if),  and print its value on each tick. It will be a huge
+ *     number: that is how much spare work the CPU could have done between
+ *     ticks. The once-per-second tick stays accurate no matter how busy the
+ *     loop is, and that is the whole benefit of a hardware timer.
+ *
+ *  4. Make it print twice a second but toggle only once a second. Use a
+ *     counter and a modulo (the % operator).
+ *
+ *  WHERE TO GO NEXT
+ *    Demo 7: put everything together into one sensor dashboard.
+ * ========================================================================== */
