@@ -1,0 +1,21 @@
+0:00 What we are building
+0:13 Where the files are
+0:42 Open your project
+1:02 Paste the lesson
+1:39 The pin list, line by line
+2:35 The golden rule
+2:57 The includes, lines 89 to 95
+3:37 Step 1, nicknames, lines 140 to 148
+4:37 The flag, line 150
+5:07 The doorbell answerer, lines 152 to 157
+5:55 main begins, lines 163 and 164
+6:09 Step 2, wake up, lines 186 to 188
+6:41 Step 3, hello, lines 213 and 214
+7:14 Build and load
+8:03 Step 4, listener and light, lines 244 to 253
+9:03 Step 5, connect the bell, lines 289 and 290
+9:33 Step 6, read the flag, lines 319 to 329
+10:30 Test it
+10:47 One press, the whole journey
+11:12 Experiments, one at a time
+11:45 You can explain it

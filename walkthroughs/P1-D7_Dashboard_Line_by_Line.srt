@@ -1,0 +1,340 @@
+1
+00:00:00,500 --> 00:00:06,150
+One program reads tilt, voltage, touch and a button, and reports every second.
+
+2
+00:00:06,150 --> 00:00:09,700
+You've met the pieces. Now we read how they join.
+
+3
+00:00:10,700 --> 00:00:17,396
+Open 07 full dashboard reference. Check the five drivers, paste both files, and
+
+4
+00:00:17,396 --> 00:00:17,820
+save.
+
+5
+00:00:18,820 --> 00:00:25,620
+Line 76 gives memory tools. Lines 77 to 80: board, pins, clock and text.
+
+6
+00:00:26,120 --> 00:00:30,360
+Lines 81 to 87 are one driver for each piece of hardware.
+
+7
+00:00:31,360 --> 00:00:35,200
+Switch on lines 129 to 150.
+
+8
+00:00:35,700 --> 00:00:39,460
+Line 129: updates per second, starting at one.
+
+9
+00:00:39,960 --> 00:00:46,840
+Line 131: the timer's flag. Line 132: the button's flag.
+
+10
+00:00:47,340 --> 00:00:54,780
+Line 133 counts confirmed presses. Line 134 chooses the long or short display.
+
+11
+00:00:55,780 --> 00:01:02,340
+Lines 136 to 141: when the timer rings, clear it and raise the tick flag.
+
+12
+00:01:02,840 --> 00:01:10,520
+Lines 143 to 150: when the button rings, line 145 clears it.
+
+13
+00:01:11,020 --> 00:01:17,020
+Line 147 switches the button interrupt off. This is the first step against bouncing.
+
+14
+00:01:17,520 --> 00:01:20,720
+Line 149 raises the button flag.
+
+15
+00:01:21,720 --> 00:01:26,760
+Switch on lines 191 to 271. These are setup tools.
+
+16
+00:01:27,260 --> 00:01:33,154
+Lines 191 to 196 name the voltage converter, its channel, and the timer channel for
+
+17
+00:01:33,154 --> 00:01:33,580
+green.
+
+18
+00:01:34,080 --> 00:01:43,280
+Line 198 begins green dimming. Lines 203 to 205: channel four, low true, 20 percent.
+
+19
+00:01:43,780 --> 00:01:47,540
+Lines 207 to 209 choose a clock and set up the timer.
+
+20
+00:01:48,040 --> 00:01:54,440
+Lines 210 and 211 set 24,000 pulses a second. Line 212 starts it.
+
+21
+00:01:55,440 --> 00:02:00,160
+Line 217 describes an input. Line 219 applies it.
+
+22
+00:02:00,660 --> 00:02:03,700
+Line 220: ring on a falling edge.
+
+23
+00:02:04,200 --> 00:02:09,640
+Line 221 gives the button priority one. Line 222 enables it.
+
+24
+00:02:10,140 --> 00:02:17,660
+Lines 225 to 231 set red and blue as outputs starting at one, which means off.
+
+25
+00:02:18,660 --> 00:02:27,060
+Lines 233 to 241 set up the converter, with its reference, and without averaging.
+
+26
+00:02:27,560 --> 00:02:33,770
+Lines 243 to 258 take one reading: choose the channel, start, wait for done, and
+
+27
+00:02:33,770 --> 00:02:35,400
+hand back the number.
+
+28
+00:02:35,900 --> 00:02:40,780
+Lines 260 to 265 prepare the periodic timer.
+
+29
+00:02:41,280 --> 00:02:47,200
+Line 266 sets the period: a million microseconds divided by the tick rate.
+
+30
+00:02:47,700 --> 00:02:55,140
+Lines 267 to 269 allow its interrupt with priority two. Line 270 starts it.
+
+31
+00:02:55,640 --> 00:02:58,280
+Which is more urgent, button or timer?
+
+32
+00:02:58,780 --> 00:03:03,780
+Your turn. Pause the video.
+
+33
+00:03:03,780 --> 00:03:06,740
+The button, because one is smaller than two.
+
+34
+00:03:07,740 --> 00:03:10,940
+Switch on lines 311 to 409.
+
+35
+00:03:11,440 --> 00:03:18,622
+Lines 311 to 315 name the sensor's mailboxes and expected answer. Line 317 lists
+
+36
+00:03:18,622 --> 00:03:19,520
+addresses.
+
+37
+00:03:20,020 --> 00:03:28,767
+Line 319 stores the address; zero means not found. Line 320 is one shared delivery
+
+38
+00:03:28,767 --> 00:03:29,300
+form.
+
+39
+00:03:29,800 --> 00:03:37,880
+Lines 322 to 337 write a mailbox. Line 336 returns true on success.
+
+40
+00:03:38,380 --> 00:03:43,340
+Lines 339 to 350 read mailboxes the same way.
+
+41
+00:03:44,340 --> 00:03:49,060
+Lines 357 to 359 set up I2C.
+
+42
+00:03:49,560 --> 00:03:55,880
+Lines 361 to 374 try each address, stopping at the right answer.
+
+43
+00:03:56,380 --> 00:04:01,660
+Lines 376 to 380 give a warning if it's missing, and carry on.
+
+44
+00:04:02,160 --> 00:04:08,880
+Lines 382 to 384: sleep, set range, wake.
+
+45
+00:04:09,380 --> 00:04:14,580
+Lines 394 to 400 hand back zeros if the sensor can't be read.
+
+46
+00:04:15,080 --> 00:04:22,040
+Lines 402 to 404 join the bytes and divide by four to drop empty bits.
+
+47
+00:04:22,540 --> 00:04:29,340
+Lines 406 to 408 convert to milli g, using 488 thousandths per count.
+
+48
+00:04:30,340 --> 00:04:33,460
+Switch on lines 449 to 501.
+
+49
+00:04:33,960 --> 00:04:38,840
+Lines 453 to 455 start the touch hardware.
+
+50
+00:04:39,340 --> 00:04:44,380
+Lines 457 and 458 measure the untouched baseline.
+
+51
+00:04:44,880 --> 00:04:54,960
+Lines 461 to 476 scan one pad: choose it, start, wait, read, and clear the flag.
+
+52
+00:04:55,960 --> 00:05:01,400
+Lines 480 to 483 subtract each pad's baseline.
+
+53
+00:05:01,900 --> 00:05:06,220
+Lines 485 to 493 turn negative noise into zero.
+
+54
+00:05:06,720 --> 00:05:16,237
+Line 495: if the total is under 20, line 497 returns a special value meaning no
+
+55
+00:05:16,237 --> 00:05:16,960
+touch.
+
+56
+00:05:17,460 --> 00:05:22,340
+Line 500 returns pad two's share, from 0 to 100.
+
+57
+00:05:22,840 --> 00:05:26,600
+If the changes are 20 and 80, what's the position?
+
+58
+00:05:27,100 --> 00:05:32,100
+Your turn. Pause the video.
+
+59
+00:05:32,100 --> 00:05:32,580
+Eighty.
+
+60
+00:05:33,580 --> 00:05:41,750
+Part B. Switch on lines 533 to 539. Line 533 makes the touch memory; the rest wake
+
+61
+00:05:41,750 --> 00:05:44,540
+the board and print a title.
+
+62
+00:05:45,040 --> 00:05:51,680
+Switch on lines 565 to 567: lights, dimming and button.
+
+63
+00:05:52,680 --> 00:06:01,201
+Switch on lines 596 to 598. Keep fingers off the pads. Void in brackets on line 598
+
+64
+00:06:01,201 --> 00:06:05,000
+means we choose to ignore the answer.
+
+65
+00:06:05,500 --> 00:06:14,060
+Switch on lines 623 to 625. The timer starts last, after every sensor is ready.
+
+66
+00:06:15,060 --> 00:06:18,820
+Switch on lines 674 to 730.
+
+67
+00:06:19,320 --> 00:06:26,520
+Line 674 loops forever. Line 676 checks the button flag.
+
+68
+00:06:27,020 --> 00:06:36,300
+Line 680 lowers it. Lines 682 to 684 wait for the bouncing to settle.
+
+69
+00:06:36,800 --> 00:06:46,223
+Line 686: is the button still down? If so, line 688 counts it and line 689 flips the
+
+70
+00:06:46,223 --> 00:06:47,120
+display.
+
+71
+00:06:47,620 --> 00:06:51,140
+Line 692 switches the button interrupt back on.
+
+72
+00:06:52,140 --> 00:06:56,140
+Line 695 is a separate check, so both events can be handled.
+
+73
+00:06:56,640 --> 00:07:03,040
+Lines 697 to 700 make boxes. Line 702 lowers the flag.
+
+74
+00:07:03,540 --> 00:07:09,700
+Lines 704 to 707 read voltage, convert it, read tilt, and read the slider.
+
+75
+00:07:10,200 --> 00:07:17,480
+Lines 709 to 712 print the long line, showing volts as a whole part and two digits.
+
+76
+00:07:17,980 --> 00:07:25,820
+Lines 714 to 721 print two dashes for no touch, or the position.
+
+77
+00:07:26,320 --> 00:07:36,400
+Line 723 ends with the press count. Otherwise line 727 prints only the count.
+
+78
+00:07:37,400 --> 00:07:43,688
+Build, load, open the terminal and press Reset. Then tilt, slide a finger from E1 to
+
+79
+00:07:43,688 --> 00:07:45,560
+E2, and press the button.
+
+80
+00:07:46,060 --> 00:07:48,780
+These values are examples. Your numbers will differ.
+
+81
+00:07:49,780 --> 00:07:56,100
+On line 129, change one to five. The dashboard updates five times a second.
+
+82
+00:07:56,600 --> 00:08:03,503
+On line 682, remove the waiting count, and press twenty times. Any double counts?
+
+83
+00:08:03,503 --> 00:08:04,440
+Restore it.
+
+84
+00:08:04,940 --> 00:08:10,700
+You've read an entire embedded program, line by line. That's a real achievement.
+
+85
+00:08:10,700 --> 00:08:11,420
+Well done.
+

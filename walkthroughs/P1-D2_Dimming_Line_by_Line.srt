@@ -1,0 +1,304 @@
+1
+00:00:00,500 --> 00:00:05,885
+Type a digit from zero to nine, and the green light changes brightness. A hardware
+
+2
+00:00:05,885 --> 00:00:09,300
+timer does the fast blinking. Let's read every line.
+
+3
+00:00:10,300 --> 00:00:18,666
+In the P1 folder, open demo code, then 02 rgb pwm reference. We need the lesson file
+
+4
+00:00:18,666 --> 00:00:20,060
+and pin_mux.c.
+
+5
+00:00:20,560 --> 00:00:25,947
+Your project needs the tpm driver. Paste the lesson over your main file, and the new
+
+6
+00:00:25,947 --> 00:00:28,640
+pin file into the board folder. Save both.
+
+7
+00:00:29,140 --> 00:00:32,100
+The new pin file connects the green light to the timer.
+
+8
+00:00:33,100 --> 00:00:37,180
+Line 83 gives us print f and get char, for talking through the terminal.
+
+9
+00:00:37,680 --> 00:00:42,320
+Line 84 knows this board. It also brings in the clock and pin tools it needs.
+
+10
+00:00:42,820 --> 00:00:49,540
+Line 85 is new: the TPM driver. TPM means timer and PWM module.
+
+11
+00:00:50,040 --> 00:00:57,560
+Line 87 brings in the pin setup. Line 93 is where main, your program, begins.
+
+12
+00:00:58,560 --> 00:01:05,143
+Switch on lines 121 to 125 with the comment shortcut: Command slash, or Control
+
+13
+00:01:05,143 --> 00:01:06,560
+slash on Windows.
+
+14
+00:01:07,060 --> 00:01:09,860
+Line 121 gives every pin its job.
+
+15
+00:01:10,360 --> 00:01:14,680
+Line 122 starts the chip's heartbeat.
+
+16
+00:01:15,180 --> 00:01:18,620
+Line 123 opens the text line to your computer.
+
+17
+00:01:19,120 --> 00:01:26,352
+Line 125 picks which clock feeds the timer. A timer can listen to different clocks,
+
+18
+00:01:26,352 --> 00:01:27,920
+so we must choose.
+
+19
+00:01:28,920 --> 00:01:36,287
+Switch on line 147. It prints a title, with backslash r backslash n to start new
+
+20
+00:01:36,287 --> 00:01:36,840
+lines.
+
+21
+00:01:37,840 --> 00:01:43,760
+Switch on lines 184 to 194. This is an order form for the brightness signal.
+
+22
+00:01:44,260 --> 00:01:48,660
+Line 184 nicknames timer TPM zero.
+
+23
+00:01:49,160 --> 00:01:55,960
+Line 185 nicknames channel four. That output is wired to the green light.
+
+24
+00:01:56,460 --> 00:02:00,300
+Line 187 makes an empty form for the timer's settings.
+
+25
+00:02:00,800 --> 00:02:04,720
+Line 188 makes an empty form for one output signal.
+
+26
+00:02:05,220 --> 00:02:11,380
+Line 189 says low true: our light counts as on when the pin is low.
+
+27
+00:02:11,880 --> 00:02:17,587
+Line 190 remembers the starting duty cycle: ten percent. The U means a number that
+
+28
+00:02:17,587 --> 00:02:18,840
+is never negative.
+
+29
+00:02:19,340 --> 00:02:21,580
+What does ten percent duty look like?
+
+30
+00:02:22,080 --> 00:02:27,080
+Your turn. Pause the video.
+
+31
+00:02:27,080 --> 00:02:27,560
+Dim.
+
+32
+00:02:28,560 --> 00:02:33,840
+Line 192 writes the channel number into the form. The words in brackets turn the
+
+33
+00:02:33,840 --> 00:02:36,480
+number into the type the driver expects.
+
+34
+00:02:36,980 --> 00:02:40,660
+Line 193 writes the level, low true.
+
+35
+00:02:41,160 --> 00:02:47,640
+Line 194 writes the duty cycle. A dot reaches one box inside the form.
+
+36
+00:02:48,640 --> 00:02:52,240
+Switch on lines 223 and 224.
+
+37
+00:02:52,740 --> 00:02:58,431
+Line 223 fills the timer form with sensible default settings. The and sign tells the
+
+38
+00:02:58,431 --> 00:03:00,260
+function where the form is.
+
+39
+00:03:00,760 --> 00:03:05,480
+Line 224 gives those settings to the real timer. It still isn't counting.
+
+40
+00:03:06,480 --> 00:03:10,000
+Switch on lines 257 to 261.
+
+41
+00:03:10,500 --> 00:03:16,100
+Line 257 asks how fast the timer's clock ticks, and gives that a nickname.
+
+42
+00:03:16,600 --> 00:03:23,401
+Line 259 sets up the signal. In order: which timer, which signal form, how many
+
+43
+00:03:23,401 --> 00:03:24,520
+signals, one.
+
+44
+00:03:25,020 --> 00:03:33,152
+Still on line 259: center aligned pulses, 24,000 of them each second, and the clock
+
+45
+00:03:33,152 --> 00:03:33,740
+speed.
+
+46
+00:03:34,240 --> 00:03:38,880
+Line 261 starts the timer. Without it, nothing moves.
+
+47
+00:03:39,380 --> 00:03:43,060
+Save, build, and load using your project's debug setup.
+
+48
+00:03:43,560 --> 00:03:49,800
+You should see a soft green glow. In a bright room, shade the light with your hand.
+
+49
+00:03:50,800 --> 00:03:56,813
+Press Terminate. Then switch on lines 294 to 320. This is the part that listens to
+
+50
+00:03:56,813 --> 00:03:57,840
+your keyboard.
+
+51
+00:03:58,340 --> 00:04:01,540
+Line 294 makes a box for the key you type.
+
+52
+00:04:02,040 --> 00:04:05,240
+Line 296, while one: repeat forever.
+
+53
+00:04:05,740 --> 00:04:11,260
+Line 298, do: run this block first, then check whether to repeat it.
+
+54
+00:04:11,760 --> 00:04:15,840
+Lines 300 to 302 ask you for a value.
+
+55
+00:04:16,340 --> 00:04:21,830
+Line 304 is the clever one. get char waits for one key. Your computer sends a
+
+56
+00:04:21,830 --> 00:04:22,900
+character code.
+
+57
+00:04:23,400 --> 00:04:28,600
+Subtracting hex 30, the code for the character zero, leaves the number itself.
+
+58
+00:04:29,100 --> 00:04:31,340
+If you type 7, what number is left?
+
+59
+00:04:31,840 --> 00:04:36,840
+Your turn. Pause the video.
+
+60
+00:04:36,840 --> 00:04:37,400
+Seven.
+
+61
+00:04:37,900 --> 00:04:42,700
+Lines 306 and 307 show what you typed.
+
+62
+00:04:43,200 --> 00:04:49,226
+Line 308 repeats the question while the value is greater than nine, which means you
+
+63
+00:04:49,226 --> 00:04:51,840
+typed something that wasn't a digit.
+
+64
+00:04:52,840 --> 00:04:58,040
+Line 310 multiplies by ten. Five becomes fifty percent.
+
+65
+00:04:58,540 --> 00:05:04,140
+Line 312 briefly disconnects the channel from the pin, using zero.
+
+66
+00:05:04,640 --> 00:05:09,440
+Lines 314 and 315 write the new duty cycle into the timer.
+
+67
+00:05:09,940 --> 00:05:15,780
+Line 317 reconnects the channel with low true. Changing it this way avoids a glitch.
+
+68
+00:05:16,280 --> 00:05:20,040
+Line 319 confirms the update. Then the loop asks again.
+
+69
+00:05:21,040 --> 00:05:29,292
+Build, load and open your terminal. Click in it, then type 0, 5, and 9. The light
+
+70
+00:05:29,292 --> 00:05:32,960
+should go dark, medium, then bright.
+
+71
+00:05:33,960 --> 00:05:41,327
+On line 259, change 24,000 to 50. Now the flashing may become visible. Skip this if
+
+72
+00:05:41,327 --> 00:05:46,120
+flashing lights bother you. Restore 24,000 afterwards.
+
+73
+00:05:46,620 --> 00:05:54,220
+On line 189, change low true to high true. Type 1, then 9. Which is brighter now?
+
+74
+00:05:54,720 --> 00:05:59,720
+Your turn. Pause the video.
+
+75
+00:05:59,720 --> 00:06:02,360
+One, because on and off are swapped.
+
+76
+00:06:02,860 --> 00:06:09,900
+Restore low true. Great work: you can now explain every line of a PWM program.
+

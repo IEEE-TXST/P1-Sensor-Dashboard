@@ -1,0 +1,332 @@
+1
+00:00:00,500 --> 00:00:06,052
+Tilt the board and read how gravity moves between X, Y and Z. This is a longer
+
+2
+00:00:06,052 --> 00:00:09,540
+lesson. We'll build a toolbox first, then use it.
+
+3
+00:00:10,540 --> 00:00:17,979
+Open 04 i2c accelerometer reference. Your project needs the i2c driver. Paste both
+
+4
+00:00:17,979 --> 00:00:19,340
+files and save.
+
+5
+00:00:20,340 --> 00:00:24,980
+Lines 69 to 72: board, pins, clock and text.
+
+6
+00:00:25,480 --> 00:00:29,000
+Line 73 is the I2C driver.
+
+7
+00:00:29,500 --> 00:00:36,140
+Lines 74 and 75 let us control two pins by hand, which we'll need soon.
+
+8
+00:00:37,140 --> 00:00:41,940
+Switch on lines 111 to 128. These are names for important numbers.
+
+9
+00:00:42,440 --> 00:00:51,827
+Line 111: we use the I2C block number zero. Line 112: speed, 100,000 bits per
+
+10
+00:00:51,827 --> 00:00:52,680
+second.
+
+11
+00:00:53,180 --> 00:00:59,808
+Lines 114 to 118 name five mailboxes inside the sensor. Zero x means the number is
+
+12
+00:00:59,808 --> 00:01:01,020
+written in hex.
+
+13
+00:01:01,520 --> 00:01:05,280
+Line 116 is the who am I mailbox.
+
+14
+00:01:05,780 --> 00:01:12,420
+Lines 120 and 121 are the two answers we accept, one for each possible sensor chip.
+
+15
+00:01:12,920 --> 00:01:23,433
+Lines 123 and 124 are the clock pin, 24, and data pin, 25. Line 125 is a short
+
+16
+00:01:23,433 --> 00:01:25,320
+waiting count.
+
+17
+00:01:25,820 --> 00:01:32,780
+Line 127 lists four possible addresses. The word const means the list never changes.
+
+18
+00:01:33,280 --> 00:01:38,720
+Line 128 remembers which address we're using, starting at hex 1 D.
+
+19
+00:01:39,720 --> 00:01:45,796
+Switch on lines 164 to 201. Sometimes the sensor is left holding the data wire low.
+
+20
+00:01:45,796 --> 00:01:47,480
+This function frees it.
+
+21
+00:01:47,980 --> 00:01:53,740
+Lines 166 to 168 make two settings forms and a counter.
+
+22
+00:01:54,240 --> 00:01:56,880
+Line 170 wakes port E.
+
+23
+00:01:57,380 --> 00:02:05,860
+Lines 171 to 174 make both pins plain pins, with a gentle pull up.
+
+24
+00:02:06,360 --> 00:02:13,480
+Lines 176 to 179 make both pins outputs that start high.
+
+25
+00:02:13,980 --> 00:02:19,340
+Line 181 pulls the data wire low. Line 182 waits a moment.
+
+26
+00:02:20,340 --> 00:02:23,060
+Line 184 repeats nine times.
+
+27
+00:02:23,560 --> 00:02:32,760
+Line 186 drops the clock, line 187 releases the data, and line 188 raises the clock.
+
+28
+00:02:33,260 --> 00:02:37,420
+Each trip is one pulse, letting the sensor finish its byte.
+
+29
+00:02:37,920 --> 00:02:45,680
+Lines 191 to 194 send a stop signal by hand: the data rises while the clock is high.
+
+30
+00:02:46,180 --> 00:02:53,780
+Lines 197 to 200 hand both pins to the real I2C hardware, using setting number five.
+
+31
+00:02:54,780 --> 00:02:59,900
+Switch on lines 240 to 269. Two helpers do all the talking.
+
+32
+00:03:00,400 --> 00:03:06,160
+Line 240: write one value into one mailbox. It hands back a status.
+
+33
+00:03:06,660 --> 00:03:15,460
+Line 242 makes an empty delivery form. Line 243 puts our value into a one item list.
+
+34
+00:03:15,960 --> 00:03:21,400
+Line 245: which address. Line 246: the direction, write.
+
+35
+00:03:21,900 --> 00:03:28,780
+Lines 247 and 248: which mailbox, and that the mailbox number is one byte.
+
+36
+00:03:29,280 --> 00:03:35,920
+Lines 249 to 251: the data, its size, and normal transfer.
+
+37
+00:03:36,420 --> 00:03:42,180
+Line 253 sends the form and waits until finished. That's what blocking means.
+
+38
+00:03:43,180 --> 00:03:46,780
+Line 256 reads one or more mailboxes into a buffer.
+
+39
+00:03:47,280 --> 00:03:58,328
+Line 261 sets the direction to read. Lines 264 and 265 say where to put the bytes,
+
+40
+00:03:58,328 --> 00:04:00,080
+and how many.
+
+41
+00:04:00,580 --> 00:04:03,380
+Which single idea separates these two helpers?
+
+42
+00:04:03,880 --> 00:04:08,880
+Your turn. Pause the video.
+
+43
+00:04:08,880 --> 00:04:10,400
+The direction of the data.
+
+44
+00:04:11,400 --> 00:04:14,680
+Switch on lines 310 to 361.
+
+45
+00:04:15,180 --> 00:04:20,140
+Line 310 returns true or false: did we find the sensor?
+
+46
+00:04:20,640 --> 00:04:23,440
+Line 315 visits each address in the list.
+
+47
+00:04:23,940 --> 00:04:32,260
+Line 317 chooses the current address. Line 319 asks the who am I mailbox.
+
+48
+00:04:32,760 --> 00:04:42,305
+If something answers, line 321 prints what it said. Lines 323 to 325 return true if
+
+49
+00:04:42,305 --> 00:04:45,640
+the answer is a chip we know.
+
+50
+00:04:46,140 --> 00:04:52,620
+If nothing answers, line 330 reports no ACK, meaning no acknowledgment.
+
+51
+00:04:53,120 --> 00:04:57,280
+Line 334 returns false when every address fails.
+
+52
+00:04:58,280 --> 00:05:04,120
+Lines 341 and 342 free the wires, then hand the pins to I2C.
+
+53
+00:05:04,620 --> 00:05:10,940
+Lines 344 to 346 set up the I2C hardware at our speed.
+
+54
+00:05:11,440 --> 00:05:19,600
+Line 350: if nothing is found, line 352 explains, and line 353 stops here forever.
+
+55
+00:05:20,100 --> 00:05:24,500
+Line 358 puts the sensor to sleep, so settings can change.
+
+56
+00:05:25,000 --> 00:05:30,520
+Line 359 chooses the range: plus or minus four g.
+
+57
+00:05:31,020 --> 00:05:35,900
+Line 360 sets 200 readings per second and wakes it.
+
+58
+00:05:36,900 --> 00:05:39,940
+Switch on lines 396 to 410.
+
+59
+00:05:40,440 --> 00:05:46,865
+Line 396 hands back three answers, using pointers: the stars mean the function
+
+60
+00:05:46,865 --> 00:05:48,760
+writes into your boxes.
+
+61
+00:05:49,260 --> 00:05:56,140
+Lines 398 and 399 make space for six raw bytes and three numbers.
+
+62
+00:05:56,640 --> 00:06:00,240
+Line 401 reads all six in one trip.
+
+63
+00:06:00,740 --> 00:06:10,049
+Line 403 joins two bytes for X, then shifts right by two to drop empty bits. Lines
+
+64
+00:06:10,049 --> 00:06:12,660
+404 and 405 do Y and Z.
+
+65
+00:06:13,160 --> 00:06:20,920
+Lines 407 to 409 convert to milli g: times 1000, divided by 2048 counts per g.
+
+66
+00:06:21,920 --> 00:06:29,760
+Now inside main. Switch on lines 438 to 442. They wake the board and print a title.
+
+67
+00:06:30,260 --> 00:06:34,340
+Switch on line 470. One call runs the whole bring up.
+
+68
+00:06:34,840 --> 00:06:39,974
+Build and load. Your board may answer at a different address. That's fine. Write
+
+69
+00:06:39,974 --> 00:06:40,680
+yours down.
+
+70
+00:06:41,680 --> 00:06:44,640
+Switch on lines 500 to 513.
+
+71
+00:06:45,140 --> 00:06:53,203
+Line 500 loops forever. Lines 502 and 503 make boxes for the answers and a wait
+
+72
+00:06:53,203 --> 00:06:54,020
+counter.
+
+73
+00:06:54,520 --> 00:07:00,440
+Line 505 reads the tilt. The and signs say where to put each answer.
+
+74
+00:07:00,940 --> 00:07:02,780
+Line 507 prints them.
+
+75
+00:07:03,280 --> 00:07:08,960
+Lines 509 to 512 count to a million, so you can read the text.
+
+76
+00:07:09,460 --> 00:07:13,620
+With the board flat, which value should be near 1000?
+
+77
+00:07:14,120 --> 00:07:19,120
+Your turn. Pause the video.
+
+78
+00:07:19,120 --> 00:07:19,760
+Z.
+
+79
+00:07:20,760 --> 00:07:25,160
+On line 509, use a smaller count to print faster.
+
+80
+00:07:25,660 --> 00:07:30,409
+Then change the range to two g, changing both places together. If you change only
+
+81
+00:07:30,409 --> 00:07:33,340
+one, your readings will be off by a factor of two.
+
+82
+00:07:33,840 --> 00:07:38,406
+Excellent. You've read an I2C sensor from the wires all the way to meaningful
+
+83
+00:07:38,406 --> 00:07:38,880
+numbers.
+

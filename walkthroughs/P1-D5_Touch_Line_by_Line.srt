@@ -1,0 +1,256 @@
+1
+00:00:00,500 --> 00:00:06,264
+Touch a copper pad and the red light switches. We'll read the pads three ways, line
+
+2
+00:00:06,264 --> 00:00:06,820
+by line.
+
+3
+00:00:07,820 --> 00:00:14,113
+Open 05 t s i touch slider reference. Your project needs the touch driver and the
+
+4
+00:00:14,113 --> 00:00:15,900
+low power timer driver.
+
+5
+00:00:16,900 --> 00:00:25,189
+Line 94 is the touch driver. Line 96 is the low power timer. The others handle the
+
+6
+00:00:25,189 --> 00:00:28,020
+board, text, clock and pins.
+
+7
+00:00:29,020 --> 00:00:32,140
+Switch on lines 146 to 170.
+
+8
+00:00:32,640 --> 00:00:36,720
+Line 146 names the first pad E1.
+
+9
+00:00:37,220 --> 00:00:44,382
+Lines 148 and 149 nickname the red light actions: prepare it switched off, and
+
+10
+00:00:44,382 --> 00:00:45,300
+toggle it.
+
+11
+00:00:45,800 --> 00:00:54,840
+Line 151 picks the timer's slow clock. Line 152: 200,000 microseconds between scans.
+
+12
+00:00:55,340 --> 00:01:01,500
+Line 154: a touch means at least this much above normal, 100.
+
+13
+00:01:02,000 --> 00:01:06,560
+Line 156 is a box to remember each pad's untouched reading.
+
+14
+00:01:07,560 --> 00:01:12,040
+Line 158 runs by itself when a scan finishes.
+
+15
+00:01:12,540 --> 00:01:15,740
+Line 160: was this scan for pad one?
+
+16
+00:01:16,240 --> 00:01:21,360
+Line 162 asks: is the reading greater than normal plus 100?
+
+17
+00:01:21,860 --> 00:01:25,380
+If so, line 164 toggles the light.
+
+18
+00:01:25,880 --> 00:01:32,200
+Lines 168 and 169 clear the hardware flags, ready for next time.
+
+19
+00:01:32,700 --> 00:01:37,500
+If normal is 500, does 580 count as a touch?
+
+20
+00:01:38,000 --> 00:01:43,000
+Your turn. Pause the video.
+
+21
+00:01:43,000 --> 00:01:46,280
+No. It must be more than 600.
+
+22
+00:01:47,280 --> 00:01:54,080
+Switch on lines 199 to 203: pins, clock, text line, and the light switched off.
+
+23
+00:01:54,580 --> 00:02:00,260
+Switch on lines 241 to 256.
+
+24
+00:02:00,760 --> 00:02:10,040
+Lines 241 and 242 make settings forms. Line 243 fills the timer form with zeros.
+
+25
+00:02:10,540 --> 00:02:14,700
+Lines 245 and 246 load default settings.
+
+26
+00:02:15,200 --> 00:02:20,960
+Lines 248 and 249 apply them to the timer and the touch hardware.
+
+27
+00:02:21,460 --> 00:02:27,540
+Line 251 sets the timer to 200 thousandths of a second. It isn't started yet.
+
+28
+00:02:28,040 --> 00:02:35,196
+Line 253 lets the touch interrupt reach the processor. Line 254 turns the touch
+
+29
+00:02:35,196 --> 00:02:39,000
+block on. Line 256 prints a start message.
+
+30
+00:02:40,000 --> 00:02:45,680
+Switch on lines 288 to 296. Keep your fingers off the pads when it runs.
+
+31
+00:02:46,180 --> 00:02:50,980
+Line 288 makes a loop counter. Line 290 clears the memory box.
+
+32
+00:02:51,480 --> 00:02:56,280
+Line 291 measures every channel and stores the untouched values.
+
+33
+00:02:56,780 --> 00:03:03,037
+Lines 293 to 296 print each channel's number and value. Your pads are channels 9 and
+
+34
+00:03:03,037 --> 00:03:03,260
+10.
+
+35
+00:03:04,260 --> 00:03:07,540
+Switch on lines 330 to 356.
+
+36
+00:03:08,040 --> 00:03:15,670
+Line 330 announces the method. Lines 332 and 333 turn off automatic scans and
+
+37
+00:03:15,670 --> 00:03:16,760
+interrupts.
+
+38
+00:03:17,260 --> 00:03:23,980
+Line 335 clears the old done flag. Line 336 picks pad one.
+
+39
+00:03:24,480 --> 00:03:28,080
+Line 337 starts one scan.
+
+40
+00:03:28,580 --> 00:03:34,740
+Lines 339 to 341 wait until the done flag rises. That's polling.
+
+41
+00:03:35,240 --> 00:03:38,040
+Line 343 reads and prints the counter.
+
+42
+00:03:39,040 --> 00:03:44,320
+Lines 345 to 353 repeat the same recipe for pad two.
+
+43
+00:03:44,820 --> 00:03:49,940
+Lines 355 and 356 tidy up the flags.
+
+44
+00:03:50,940 --> 00:03:54,780
+Switch on lines 383 to 405.
+
+45
+00:03:55,280 --> 00:04:02,160
+Lines 385 and 386 allow touch interrupts, so our handler now runs.
+
+46
+00:04:02,660 --> 00:04:07,380
+Lines 388 to 390 start a scan of pad one.
+
+47
+00:04:07,880 --> 00:04:13,640
+Lines 392 to 394 wait while a scan is in progress.
+
+48
+00:04:14,140 --> 00:04:21,340
+Line 396 prints it. Lines 398 to 405 do the same for pad two.
+
+49
+00:04:22,340 --> 00:04:25,780
+Switch on lines 441 to 457.
+
+50
+00:04:26,280 --> 00:04:29,240
+Lines 441 and 442 tell you what to do.
+
+51
+00:04:29,740 --> 00:04:37,473
+Line 444 switches the touch block off while we change it. Line 445 lets hardware
+
+52
+00:04:37,473 --> 00:04:39,020
+start the scans.
+
+53
+00:04:39,520 --> 00:04:47,600
+Lines 446 to 448 allow interrupts and clear the flag.
+
+54
+00:04:48,100 --> 00:04:57,380
+Line 450 picks pad one. Line 451 switches the block back on.
+
+55
+00:04:57,880 --> 00:05:03,000
+Line 453 starts the timer. From now on it triggers every scan.
+
+56
+00:05:03,500 --> 00:05:09,260
+Lines 455 to 457 loop forever, doing nothing.
+
+57
+00:05:09,760 --> 00:05:11,680
+So who toggles the light now?
+
+58
+00:05:12,180 --> 00:05:17,180
+Your turn. Pause the video.
+
+59
+00:05:17,180 --> 00:05:19,740
+The handler, after each automatic scan.
+
+60
+00:05:20,740 --> 00:05:25,807
+Build and load with your hands off, press Reset, then touch pad E1. Holding on may
+
+61
+00:05:25,807 --> 00:05:29,700
+switch the light repeatedly, because it checks again and again.
+
+62
+00:05:30,200 --> 00:05:38,520
+On line 154, try 20 for a very sensitive pad, then 500 for a firm press.
+
+63
+00:05:39,020 --> 00:05:45,416
+On line 152, try one million, one scan per second. Feel the delay. You now
+
+64
+00:05:45,416 --> 00:05:48,700
+understand touch sensing line by line.
+

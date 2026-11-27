@@ -1,0 +1,160 @@
+1
+00:00:00,500 --> 00:00:06,952
+Tilt: numbers change. Touch: a position appears. Press: the display changes. Let's
+
+2
+00:00:06,952 --> 00:00:10,020
+discover how the board senses all that.
+
+3
+00:00:11,020 --> 00:00:16,460
+The accelerometer feels pushes and tilts in three directions: X, Y and Z.
+
+4
+00:00:17,460 --> 00:00:25,065
+The chip talks to it using I2C. Two wires: one carries a clock beat, one carries
+
+5
+00:00:25,065 --> 00:00:25,540
+data.
+
+6
+00:00:26,040 --> 00:00:30,945
+Every device on the street has an address, its house number. Inside are numbered
+
+7
+00:00:30,945 --> 00:00:32,600
+mailboxes called registers.
+
+8
+00:00:33,100 --> 00:00:39,820
+Our sensor may live at one of four addresses, so the chip knocks on each. A reply to
+
+9
+00:00:39,820 --> 00:00:42,700
+a knock is called an acknowledgment.
+
+10
+00:00:43,200 --> 00:00:49,110
+Then it reads the 'who are you' mailbox, number zero D. The dashboard hopes to hear
+
+11
+00:00:49,110 --> 00:00:49,680
+C seven.
+
+12
+00:00:50,180 --> 00:00:56,900
+The smaller demo also accepts one A, a different sensor used on some boards.
+
+13
+00:00:57,900 --> 00:01:00,460
+Each direction arrives as two bytes.
+
+14
+00:01:00,960 --> 00:01:06,349
+The chip glues them together, drops two empty bits at the bottom while keeping the
+
+15
+00:01:06,349 --> 00:01:11,474
+plus or minus sign, and scales the result into milli-g: thousandths of Earth's
+
+16
+00:01:11,474 --> 00:01:12,000
+gravity.
+
+17
+00:01:12,500 --> 00:01:17,460
+A board lying still and flat. Which direction should read about a thousand?
+
+18
+00:01:17,960 --> 00:01:22,960
+Your turn. Pause the video.
+
+19
+00:01:22,960 --> 00:01:28,240
+Z, pointing up or down. The sign shows which way up it is.
+
+20
+00:01:29,240 --> 00:01:35,529
+The touch pads are just copper. Your finger changes how much electric charge a pad
+
+21
+00:01:35,529 --> 00:01:40,360
+can hold, called capacitance. The chip measures it as a number.
+
+22
+00:01:40,860 --> 00:01:46,628
+At startup it records each pad with no finger: the baseline. So keep your hands off
+
+23
+00:01:46,628 --> 00:01:47,740
+while it starts.
+
+24
+00:01:48,740 --> 00:01:54,127
+Subtract the baselines. If both changes together are tiny, nobody is touching.
+
+25
+00:01:54,127 --> 00:01:56,820
+Otherwise, find the second pad's share.
+
+26
+00:01:57,320 --> 00:02:02,153
+Changes of twenty and eighty give a position of eighty. Near zero means the first
+
+27
+00:02:02,153 --> 00:02:04,360
+pad; near a hundred means the second.
+
+28
+00:02:05,360 --> 00:02:11,326
+When should the board report? A hardware timer called PIT rings at a steady rate and
+
+29
+00:02:11,326 --> 00:02:12,320
+raises a flag.
+
+30
+00:02:12,820 --> 00:02:18,923
+The main loop sees the flag, reads the sensors and prints. The button has its own
+
+31
+00:02:18,923 --> 00:02:19,300
+flag.
+
+32
+00:02:19,800 --> 00:02:23,880
+The loop checks both, because both can be up together.
+
+33
+00:02:24,880 --> 00:02:27,280
+Reading sensors and printing take time.
+
+34
+00:02:27,780 --> 00:02:33,344
+If ticks arrive faster than the work finishes, a flag only says 'work is waiting',
+
+35
+00:02:33,344 --> 00:02:35,380
+not how many ticks you missed.
+
+36
+00:02:35,880 --> 00:02:39,320
+At five updates per second, how long between ticks?
+
+37
+00:02:39,820 --> 00:02:44,820
+Your turn. Pause the video.
+
+38
+00:02:44,820 --> 00:02:48,580
+Two hundred thousand microseconds, a fifth of a second.
+
+39
+00:02:49,580 --> 00:02:56,300
+Addresses for tilt, baselines for touch, and a metronome for timing. Now let's build
+
+40
+00:02:56,300 --> 00:02:56,700
+them.
+

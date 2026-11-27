@@ -1,0 +1,9 @@
+0:00 The dashboard
+0:10 A tiny sensor that feels gravity
+0:16 Talking over two wires
+0:57 From bytes to tilt
+1:28 Feeling a finger
+1:48 Two pads make a slider
+2:04 The metronome
+2:24 Too fast
+2:49 Ready

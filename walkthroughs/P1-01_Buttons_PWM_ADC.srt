@@ -1,0 +1,188 @@
+1
+00:00:00,500 --> 00:00:05,558
+Today your chip learns three things: to feel a button, to dim a light, and to
+
+2
+00:00:05,558 --> 00:00:06,740
+measure a voltage.
+
+3
+00:00:07,740 --> 00:00:13,202
+A chip's metal connections are called pins. Many pins can do several jobs, like a
+
+4
+00:00:13,202 --> 00:00:17,180
+person with many hats. The pin mux setting chooses the hat.
+
+5
+00:00:17,680 --> 00:00:20,720
+An input pin listens. An output pin acts.
+
+6
+00:00:21,720 --> 00:00:26,388
+Our button's wire is gently held high by a pull-up, like a spring holding a door
+
+7
+00:00:26,388 --> 00:00:26,680
+shut.
+
+8
+00:00:27,180 --> 00:00:33,235
+Press the button and the wire connects to ground: it goes low. The exact moment it
+
+9
+00:00:33,235 --> 00:00:36,780
+drops from high to low is called a falling edge.
+
+10
+00:00:37,280 --> 00:00:38,880
+Pressed means high or low?
+
+11
+00:00:39,380 --> 00:00:44,380
+Your turn. Pause the video.
+
+12
+00:00:44,380 --> 00:00:45,420
+Low.
+
+13
+00:00:46,420 --> 00:00:52,226
+One way to notice a press is to keep asking. That's polling. It works, but you can't
+
+14
+00:00:52,226 --> 00:00:55,060
+do much else. A better way is a doorbell.
+
+15
+00:00:55,560 --> 00:01:00,808
+The hardware interrupts your program when something happens. A tiny function answers
+
+16
+00:01:00,808 --> 00:01:04,120
+the door, leaves a note called a flag, and goes back.
+
+17
+00:01:04,620 --> 00:01:08,140
+The main program reads the note and does the work.
+
+18
+00:01:09,140 --> 00:01:13,997
+If two doorbells ring together, priority numbers decide. On this chip, the smaller
+
+19
+00:01:13,997 --> 00:01:15,300
+number is more urgent.
+
+20
+00:01:15,800 --> 00:01:19,800
+In our dashboard, the button is one and the timer is two.
+
+21
+00:01:20,800 --> 00:01:26,686
+Metal inside a button bounces when it closes, like a dropped ball. The chip is so
+
+22
+00:01:26,686 --> 00:01:29,520
+fast it may count one press as several.
+
+23
+00:01:30,020 --> 00:01:35,290
+The cure is debouncing: notice the first touch, stop listening briefly, wait a
+
+24
+00:01:35,290 --> 00:01:40,020
+moment, check the button is still down, count once, then listen again.
+
+25
+00:01:41,020 --> 00:01:46,875
+A basic light output is only on or off. So how do we get half bright? Blink it so
+
+26
+00:01:46,875 --> 00:01:49,260
+fast your eyes blend it together.
+
+27
+00:01:49,760 --> 00:01:55,641
+The share of time it's on is the duty cycle. Ten percent looks dim. Ninety percent
+
+28
+00:01:55,641 --> 00:02:00,160
+looks bright. This trick is called PWM, pulse width modulation.
+
+29
+00:02:00,660 --> 00:02:06,980
+On our board, low means on, so a longer low time looks brighter.
+
+30
+00:02:07,480 --> 00:02:11,965
+A hardware timer makes the pulses by itself, twenty-four thousand per second, while
+
+31
+00:02:11,965 --> 00:02:13,640
+your program does other things.
+
+32
+00:02:14,140 --> 00:02:19,299
+Curious about the numbers? With a timer ticking forty-eight million times a second,
+
+33
+00:02:19,299 --> 00:02:22,780
+it counts up to a thousand and back down for each blink.
+
+34
+00:02:23,280 --> 00:02:27,996
+Twenty-five percent means the switching point is two hundred fifty. The helper code
+
+35
+00:02:27,996 --> 00:02:29,360
+calculates this for you.
+
+36
+00:02:30,360 --> 00:02:36,840
+The world is smooth: light, heat, a turning knob. The chip likes whole numbers.
+
+37
+00:02:37,340 --> 00:02:43,787
+The ADC, analog to digital converter, measures a voltage and gives a number from
+
+38
+00:02:43,787 --> 00:02:48,380
+zero to four thousand ninety-five. Zero means zero volts.
+
+39
+00:02:48,880 --> 00:02:52,000
+The top number means about three point three volts.
+
+40
+00:02:52,500 --> 00:02:56,580
+If the number is about two thousand forty-eight, roughly what voltage is that?
+
+41
+00:02:57,080 --> 00:03:02,080
+Your turn. Pause the video.
+
+42
+00:03:02,080 --> 00:03:07,120
+About half: 1.65 volts, or 1650 millivolts.
+
+43
+00:03:08,120 --> 00:03:13,547
+To get millivolts, multiply by three thousand three hundred first, then divide.
+
+44
+00:03:13,547 --> 00:03:19,249
+Whole-number division throws away leftovers, so dividing first would leave you with
+
+45
+00:03:19,249 --> 00:03:20,280
+almost nothing.
+
+46
+00:03:21,280 --> 00:03:27,236
+Doorbells for buttons, fast blinking for brightness, and a number ruler for voltage.
+
+47
+00:03:27,236 --> 00:03:30,640
+Next you'll build each one. See you in demo one.
+

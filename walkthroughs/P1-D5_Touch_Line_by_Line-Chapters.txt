@@ -1,0 +1,12 @@
+0:00 What we are building
+0:07 Files and drivers
+0:16 The includes, lines 93 to 99
+0:28 Step 1, settings, lines 146 to 156
+1:07 The handler, lines 158 to 170
+1:46 Steps 2 and 3, lines 199 to 256
+2:39 Step 4, learn normal, lines 288 to 296
+3:03 Step 5, polling, lines 330 to 343
+3:38 The second pad, lines 345 to 356
+3:50 Step 6, interrupts, lines 383 to 405
+4:21 Step 7, automatic, lines 441 to 457
+5:20 Run it and experiment

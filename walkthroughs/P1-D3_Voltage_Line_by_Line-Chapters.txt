@@ -1,0 +1,11 @@
+0:00 What we are building
+0:06 Files, driver and wiring
+0:32 The includes, lines 88 to 93
+0:52 Steps 1 and 2, lines 120 to 143
+1:15 Step 3, names, lines 180 to 182
+1:33 Set up the converter, lines 184 to 194
+2:08 Step 4, calibrate, lines 221 to 230
+2:36 Step 5, choose the channel, lines 254 to 263
+3:11 Step 6, measure, lines 300 to 315
+4:14 Run it
+4:25 Check the math

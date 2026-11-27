@@ -1,0 +1,14 @@
+0:00 What we are building
+0:10 Files and driver
+0:19 The includes, lines 69 to 75
+0:36 Step 1, facts, lines 111 to 128
+1:39 Step 2, unstick the wires, lines 164 to 182
+2:19 Nine pulses and a goodbye, lines 184 to 201
+2:54 Step 3, write a mailbox, lines 240 to 254
+3:42 Read mailboxes, lines 256 to 269
+4:10 Step 4, find the sensor, lines 310 to 335
+4:57 Wake the sensor, lines 337 to 361
+5:36 Step 5, translate, lines 396 to 410
+6:21 Steps 6 and 7, lines 438 to 470
+6:41 Step 8, live readings, lines 500 to 513
+7:20 Experiments

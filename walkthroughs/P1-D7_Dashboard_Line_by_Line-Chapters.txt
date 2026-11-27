@@ -1,0 +1,18 @@
+0:00 What we are building
+0:10 Files and drivers
+0:18 The includes, lines 76 to 87
+0:30 Step 1, flags, lines 129 to 134
+0:55 Two handlers, lines 136 to 150
+1:21 Step 2, names and dimming, lines 191 to 213
+1:54 Button and lights, lines 215 to 231
+2:18 Voltage and timer, lines 233 to 271
+3:07 Step 3, tilt tools, lines 311 to 350
+3:43 Find and read, lines 352 to 409
+4:29 Step 4, touch slider, lines 449 to 476
+4:55 Two pads become one position, lines 478 to 501
+5:33 Part B, Steps 5 and 6, lines 533 to 567
+5:52 Steps 7 and 8, lines 596 to 625
+6:14 Step 9, the button branch, lines 674 to 693
+6:51 The tick branch, lines 695 to 730
+7:36 Run it
+7:49 Experiments

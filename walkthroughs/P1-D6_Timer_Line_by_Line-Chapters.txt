@@ -1,0 +1,12 @@
+0:00 What we are building
+0:07 Files and driver
+0:15 The includes, lines 87 to 92
+0:24 Step 1, names and flag, lines 134 to 141
+0:56 The handler, lines 143 to 148
+1:27 Step 2, wake up, lines 177 to 181
+1:43 Step 3, the timer, lines 209 to 212
+1:55 Step 4, set the alarm, lines 247 to 251
+2:15 Step 5, start, lines 278 to 280
+2:38 Step 6, respond, lines 308 to 318
+2:58 Run it
+3:06 Experiments

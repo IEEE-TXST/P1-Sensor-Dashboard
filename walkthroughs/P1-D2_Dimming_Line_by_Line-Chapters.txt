@@ -1,0 +1,13 @@
+0:00 What we are building
+0:09 Files and driver
+0:32 The includes, lines 83 to 87
+0:58 Step 1, lines 121 to 125
+1:28 Step 2, line 147
+1:37 Step 3, names and boxes, lines 184 to 190
+2:28 Fill the form, lines 192 to 194
+2:48 Step 4, lines 223 and 224
+3:05 Step 5, lines 257 to 261
+3:50 Step 6, the loop, lines 294 to 309
+4:52 Change the brightness safely, lines 310 to 319
+5:20 Try it
+5:33 Experiments

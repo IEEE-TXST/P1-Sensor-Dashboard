@@ -1,0 +1,228 @@
+1
+00:00:00,500 --> 00:00:06,020
+Press a key, and the board measures a voltage and prints it. Let's read every line.
+
+2
+00:00:07,020 --> 00:00:14,537
+Open 03 adc reference. Your project needs the adc16 driver. Paste the lesson over
+
+3
+00:00:14,537 --> 00:00:18,620
+your main file, and its pin file into board.
+
+4
+00:00:19,120 --> 00:00:26,744
+A knob is optional. Unplug first, and ask your leader to check: outer legs to ground
+
+5
+00:00:26,744 --> 00:00:29,920
+and 3.3 volts, middle leg to PTE30.
+
+6
+00:00:30,420 --> 00:00:31,860
+Never 5 volts.
+
+7
+00:00:32,860 --> 00:00:39,660
+Line 88: text in and out. Line 89: board details.
+
+8
+00:00:40,160 --> 00:00:45,920
+Line 90 is new: the ADC driver, the analog to digital converter.
+
+9
+00:00:46,420 --> 00:00:52,100
+Lines 92 and 93: pin and clock setup. Line 99 starts main.
+
+10
+00:00:53,100 --> 00:00:57,740
+Switch on lines 120 to 122 with the comment shortcut.
+
+11
+00:00:58,240 --> 00:01:08,160
+Line 120 sets pin jobs. Line 121 starts the heartbeat. Line 122 opens the text line.
+
+12
+00:01:08,660 --> 00:01:14,820
+Switch on line 143. It prints a title so you know the program started.
+
+13
+00:01:15,820 --> 00:01:19,180
+Switch on lines 180 to 194.
+
+14
+00:01:19,680 --> 00:01:23,840
+Line 180 nicknames the converter, ADC zero.
+
+15
+00:01:24,340 --> 00:01:32,600
+Line 181 picks setting group zero. Line 182 picks input channel 23, which is pin
+
+16
+00:01:32,600 --> 00:01:33,220
+PTE30.
+
+17
+00:01:34,220 --> 00:01:37,580
+Line 184 makes an empty settings form.
+
+18
+00:01:38,080 --> 00:01:42,080
+Line 186 fills it with the driver's defaults.
+
+19
+00:01:42,580 --> 00:01:49,187
+Lines 188 to 190: if this board asks for the other voltage reference, line 189
+
+20
+00:01:49,187 --> 00:01:54,100
+selects it. The reference is the ruler we measure against.
+
+21
+00:01:54,600 --> 00:01:58,200
+Line 192 gives the settings to the converter.
+
+22
+00:01:58,700 --> 00:02:07,500
+Line 194, false, means no hardware trigger. A measurement starts when our code asks.
+
+23
+00:02:08,500 --> 00:02:11,540
+Switch on lines 221 to 230.
+
+24
+00:02:12,040 --> 00:02:17,799
+Line 221 includes this block only if the chip supports calibration. Line 230 closes
+
+25
+00:02:17,799 --> 00:02:18,840
+that condition.
+
+26
+00:02:19,340 --> 00:02:23,740
+Line 222 runs the self test, and asks: did it succeed?
+
+27
+00:02:24,240 --> 00:02:32,160
+If yes, line 224 prints Done. Otherwise line 228 prints Failed.
+
+28
+00:02:32,660 --> 00:02:35,620
+Calibration is like zeroing a kitchen scale.
+
+29
+00:02:36,620 --> 00:02:40,540
+Switch on lines 254 to 263.
+
+30
+00:02:41,040 --> 00:02:46,080
+Line 254 makes a small form describing one measurement.
+
+31
+00:02:46,580 --> 00:02:49,620
+Line 256 asks you to press a key.
+
+32
+00:02:50,120 --> 00:02:54,360
+Line 258 writes channel 23 into the form.
+
+33
+00:02:54,860 --> 00:03:00,380
+Line 259: no interrupt when finished. We'll wait for the answer ourselves.
+
+34
+00:03:00,880 --> 00:03:09,150
+Lines 261 to 263 turn off two wire mode, if the chip has it. We measure one pin
+
+35
+00:03:09,150 --> 00:03:10,720
+against ground.
+
+36
+00:03:11,720 --> 00:03:14,680
+Switch on lines 300 to 315.
+
+37
+00:03:15,180 --> 00:03:18,380
+Line 300: repeat forever.
+
+38
+00:03:18,880 --> 00:03:21,280
+Line 302 waits for any key.
+
+39
+00:03:21,780 --> 00:03:27,822
+Line 304 hands the channel form to the converter. In this mode, that starts the
+
+40
+00:03:27,822 --> 00:03:28,740
+measurement.
+
+41
+00:03:29,240 --> 00:03:36,120
+Lines 306 and 307 form a waiting loop: keep going while the done flag is still down.
+
+42
+00:03:36,620 --> 00:03:42,860
+The empty brackets on lines 308 and 309 mean do nothing else.
+
+43
+00:03:43,360 --> 00:03:45,200
+Waiting like this is called what?
+
+44
+00:03:45,700 --> 00:03:50,700
+Your turn. Pause the video.
+
+45
+00:03:50,700 --> 00:03:51,340
+Polling.
+
+46
+00:03:51,840 --> 00:03:56,960
+Line 311 reads the raw number, from 0 to 4095.
+
+47
+00:03:57,460 --> 00:04:07,140
+Line 312 changes it to millivolts: times 3300 first, then divided by 4095.
+
+48
+00:04:07,640 --> 00:04:14,360
+Line 314 prints both. Percent u prints a number that is never negative.
+
+49
+00:04:15,360 --> 00:04:18,880
+Save, build, load, and open your terminal. Press a key.
+
+50
+00:04:19,380 --> 00:04:23,985
+These numbers are examples. Yours depend on the voltage on your pin. If the pin is
+
+51
+00:04:23,985 --> 00:04:25,220
+empty, they'll wander.
+
+52
+00:04:26,220 --> 00:04:32,060
+If raw is 1024, about a quarter of the range, what voltage?
+
+53
+00:04:32,560 --> 00:04:37,560
+Your turn. Pause the video.
+
+54
+00:04:37,560 --> 00:04:39,800
+About 825 millivolts.
+
+55
+00:04:40,300 --> 00:04:47,910
+Try it the wrong way on line 312: divide first. Almost every reading becomes zero.
+
+56
+00:04:47,910 --> 00:04:49,580
+Put the line back.
+
+57
+00:04:50,080 --> 00:04:55,360
+Now you can explain how a chip turns a voltage into a number. Next demo: tilt.
+
