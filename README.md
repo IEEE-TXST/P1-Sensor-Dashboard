@@ -16,7 +16,8 @@ Live UART dashboard showing accelerometer X/Y/Z in mg, ADC raw counts and voltag
 
 ## Repo layout
 
-- `P1_1_Start_Here.md` through `P1_4_Reference.md`: the Project Manual, split into four files. The manual is a fallback resource; work through each session hands-on first.
+- [`P1_Project_Manual.pdf`](P1_Project_Manual.pdf): the whole Project Manual in one file, for reading or printing.
+- [`docs/`](docs/): the same manual as four Markdown files, `P1_1_Start_Here.md` through `P1_4_Reference.md`. The manual is a fallback resource; work through each session hands-on first.
 - `demo_code/01_button_polling_vs_interrupt/`: the same button read done both ways, for direct comparison.
 - `demo_code/02_rgb_pwm_reference/`: TPM0 hardware PWM brightness control on the green LED.
 - `demo_code/03_adc_reference/`: software-triggered ADC read, raw counts and millivolts.
@@ -28,7 +29,9 @@ Live UART dashboard showing accelerometer X/Y/Z in mg, ADC raw counts and voltag
 
 ## Getting started
 
-Read `P1_1_Start_Here.md` first, then follow `P1_3_Setup_and_Walkthrough.md`. Then work through the step-by-step files in `demo_code/` in order, 01 to 07. Each one explains itself as you switch its code on a step at a time; see `demo_code/README.md` for the three-move setup.
+**Manual:** [open the PDF](P1_Project_Manual.pdf), or [read it here on GitHub](docs/P1_1_Start_Here.md).
+
+Read [`P1_1_Start_Here.md`](docs/P1_1_Start_Here.md) first, then follow [`P1_3_Setup_and_Walkthrough.md`](docs/P1_3_Setup_and_Walkthrough.md). Then work through the step-by-step files in `demo_code/` in order, 01 to 07. Each one explains itself as you switch its code on a step at a time; see `demo_code/README.md` for the three-move setup.
 
 ## Watch and build
 

@@ -4,7 +4,7 @@
 **Document status:** DRAFT v0.1, for project-leader review and bench testing before member use
 **Track:** Embedded Systems | **Difficulty:** Beginner to Intermediate | **Sessions:** 2 (WS2, Sep 10 and WS3, Sep 24, 2026), with independent work between sessions
 **Applies to:** All 8 groups (24 members)
-**Companion documents:** *IEEE TXST Project Developer Guideline*, *TXST IEEE FRDM-KL26Z Project Specification*, P0's manual (`P0_Board_Orientation_and_Toolchain_Setup/`, start at `P0_1_Start_Here.md`; read this one first if you haven't done P0)
+**Companion documents:** *IEEE TXST Project Developer Guideline*, *TXST IEEE FRDM-KL26Z Project Specification*, P0's manual (`P0_Board_Orientation_and_Toolchain_Setup/docs/`, start at `P0_1_Start_Here.md`; read this one first if you haven't done P0)
 **Demo code:** see `demo_code/` in this project's folder. These are step-by-step code files with the explanation written inside them; see `demo_code/README.md`.
 
 ---
